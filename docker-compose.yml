@@ -136,7 +136,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Ollama LLM Server
+  # Ollama LLM Server (runs on CPU by default, GPU optional)
   ollama:
     image: ollama/ollama:latest
     volumes:
@@ -145,13 +145,14 @@ services:
       - "11434:11434"
     networks:
       - openfyxer-network
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # Note: For GPU support, uncomment the deploy section below and ensure NVIDIA drivers are installed
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     restart: unless-stopped
 
 networks:

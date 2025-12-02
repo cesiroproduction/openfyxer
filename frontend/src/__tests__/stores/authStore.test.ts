@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { useAuthStore } from '../../store/authStore'
 
 describe('authStore', () => {
@@ -24,6 +24,7 @@ describe('authStore', () => {
       email: 'test@example.com',
       full_name: 'Test User',
       two_factor_enabled: false,
+      is_active: true,
     }
     const token = 'jwt-token-123'
 
@@ -37,7 +38,7 @@ describe('authStore', () => {
 
   it('should logout correctly', () => {
     useAuthStore.getState().setAuth(
-      { id: '1', email: 'test@example.com', full_name: 'Test', two_factor_enabled: false },
+      { id: '1', email: 'test@example.com', full_name: 'Test', two_factor_enabled: false, is_active: true },
       'token'
     )
 
@@ -51,7 +52,7 @@ describe('authStore', () => {
 
   it('should update user correctly', () => {
     useAuthStore.getState().setAuth(
-      { id: '1', email: 'test@example.com', full_name: 'Test', two_factor_enabled: false },
+      { id: '1', email: 'test@example.com', full_name: 'Test', two_factor_enabled: false, is_active: true },
       'token'
     )
 
