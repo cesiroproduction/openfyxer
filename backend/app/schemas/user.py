@@ -92,3 +92,13 @@ class PasswordReset(BaseModel):
     """Schema for password reset."""
 
     email: EmailStr
+
+
+class RegisterResponse(BaseModel):
+    """Schema for registration response with user and token."""
+
+    user: UserResponse
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int

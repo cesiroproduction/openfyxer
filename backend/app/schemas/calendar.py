@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 class CalendarEventCreate(BaseModel):
     """Schema for creating a calendar event."""
 
-    provider: str = Field(..., pattern="^(google|outlook)$")
+    provider: str = Field(default="local", pattern="^(google|outlook|local)$")
     title: str = Field(..., min_length=1, max_length=500)
     description: Optional[str] = None
     start_time: datetime

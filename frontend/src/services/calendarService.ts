@@ -41,27 +41,28 @@ export const calendarService = {
         params.append(key, String(value))
       }
     })
-    const response = await api.get(`/calendar?${params.toString()}`)
-    return response.data
+    const response = await api.get(`/calendar/events?${params.toString()}`)
+    // Handle paginated response
+    return response.data.items || response.data
   },
 
   getEvent: async (id: string): Promise<CalendarEvent> => {
-    const response = await api.get(`/calendar/${id}`)
+    const response = await api.get(`/calendar/events/${id}`)
     return response.data
   },
 
   createEvent: async (event: Partial<CalendarEvent>): Promise<CalendarEvent> => {
-    const response = await api.post('/calendar', event)
+    const response = await api.post('/calendar/events', event)
     return response.data
   },
 
   updateEvent: async (id: string, event: Partial<CalendarEvent>): Promise<CalendarEvent> => {
-    const response = await api.put(`/calendar/${id}`, event)
+    const response = await api.put(`/calendar/events/${id}`, event)
     return response.data
   },
 
   deleteEvent: async (id: string): Promise<void> => {
-    await api.delete(`/calendar/${id}`)
+    await api.delete(`/calendar/events/${id}`)
   },
 
   getAvailableSlots: async (

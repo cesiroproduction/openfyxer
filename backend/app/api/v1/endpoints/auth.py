@@ -30,6 +30,7 @@ from app.models.audit_log import AuditLog
 from app.models.user import User
 from app.models.user_settings import UserSettings
 from app.schemas.user import (
+    RegisterResponse,
     Token,
     TwoFactorSetup,
     TwoFactorVerify,
@@ -64,7 +65,7 @@ async def create_audit_log(
     await db.commit()
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     user_in: UserCreate,
     request: Request,
@@ -99,6 +100,10 @@ async def register(
     await db.commit()
     await db.refresh(user)
     
+    # Create tokens for auto-login after registration
+    access_token = create_access_token(subject=str(user.id))
+    refresh_token = create_refresh_token(subject=str(user.id))
+    
     # Create audit log
     await create_audit_log(
         db=db,
@@ -108,7 +113,13 @@ async def register(
         details={"email": user.email},
     )
     
-    return user
+    return RegisterResponse(
+        user=user,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
 
 
 @router.post("/login", response_model=Token)

@@ -137,8 +137,11 @@ services:
     restart: unless-stopped
 
   # Ollama LLM Server (runs on CPU by default, GPU optional)
+  # Auto-downloads tinyllama model on first startup
   ollama:
-    image: ollama/ollama:latest
+    build:
+      context: ./ollama
+      dockerfile: Dockerfile
     volumes:
       - ollama_models:/root/.ollama
     ports:
