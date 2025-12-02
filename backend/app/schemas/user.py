@@ -12,6 +12,7 @@ class UserCreate(BaseModel):
 
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=100)
+    full_name: Optional[str] = Field(default=None, max_length=255)
     language: str = Field(default="en", pattern="^(en|ro)$")
     timezone: str = Field(default="UTC")
 
@@ -29,6 +30,7 @@ class UserResponse(BaseModel):
 
     id: UUID
     email: str
+    full_name: Optional[str] = None
     is_active: bool
     is_2fa_enabled: bool
     language: str

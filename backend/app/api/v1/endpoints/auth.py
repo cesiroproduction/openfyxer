@@ -84,6 +84,7 @@ async def register(
     # Create new user
     user = User(
         email=user_in.email,
+        full_name=user_in.full_name,
         hashed_password=get_password_hash(user_in.password),
         language=user_in.language,
         timezone=user_in.timezone,
