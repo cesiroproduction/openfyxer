@@ -42,21 +42,30 @@ export const auditService = {
       }
     })
     const response = await api.get(`/audit?${params.toString()}`)
-    return response.data
+    return response.data.items || []
   },
 
   getStats: async (): Promise<AuditStats> => {
     const response = await api.get('/audit/stats')
-    return response.data
+    // Map API response to expected format
+    const data = response.data
+    return {
+      total_actions: data.total_actions,
+      actions_today: data.actions_today,
+      success_count: data.success_count || 0,
+      error_count: data.error_count || 0,
+      success_rate: data.success_rate / 100, // API returns percentage, frontend expects decimal
+      common_actions: data.most_common_actions || []
+    }
   },
 
   getAvailableActions: async (): Promise<string[]> => {
     const response = await api.get('/audit/actions')
-    return response.data
+    return response.data.actions || []
   },
 
   getEntityTypes: async (): Promise<string[]> => {
     const response = await api.get('/audit/entity-types')
-    return response.data
+    return response.data.entity_types || []
   },
 }
