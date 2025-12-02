@@ -6,6 +6,7 @@ export interface ChatMessage {
   content: string
   sources?: ChatSource[]
   timestamp: string
+  created_at?: string
 }
 
 export interface ChatSource {
@@ -27,7 +28,13 @@ export const chatService = {
 
   getHistory: async (): Promise<ChatMessage[]> => {
     const response = await api.get('/chat/history')
-    return response.data
+    // API returns {messages: [...], total: ...}, extract messages array
+    const messages = response.data.messages || []
+    // Map created_at to timestamp for frontend compatibility
+    return messages.map((msg: any) => ({
+      ...msg,
+      timestamp: msg.created_at || msg.timestamp
+    }))
   },
 
   clearHistory: async (): Promise<void> => {

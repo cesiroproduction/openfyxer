@@ -1,5 +1,6 @@
 """Chat endpoints."""
 
+import logging
 import uuid
 from datetime import datetime
 from typing import Any, List, Optional
@@ -9,6 +10,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.config import settings
+from app.core.exceptions import LLMError
 from app.db.session import get_db
 from app.models.document import Document
 from app.models.draft import Draft
@@ -24,6 +27,9 @@ from app.schemas.chat import (
     ChatResponse,
     ChatSuggestion,
 )
+from app.services import LLMService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -99,12 +105,64 @@ async def send_chat_message(
             if meeting:
                 context_text = f"Meeting: {meeting.title}\nTranscript: {meeting.transcript[:1000] if meeting.transcript else ''}\nSummary: {meeting.summary or ''}"
     
-    # TODO: Call LLM to generate response
-    # For now, generate placeholder response
-    response_text = f"I received your message: '{message_in.message}'"
+    # Build system prompt for the AI assistant
+    system_prompt = (
+        "You are OpenFyxer, an AI executive assistant that helps manage emails, "
+        "calendar, documents and meetings. Be concise, helpful, and professional. "
+        "If you don't know something, say so honestly."
+    )
     
+    # Prepare the prompt with context if available
+    prompt = message_in.message
     if context_text:
-        response_text += f"\n\nI'm analyzing the {message_in.context_type} you referenced."
+        prompt = (
+            f"Here is some context from the user's {message_in.context_type}:\n"
+            f"{context_text}\n\n"
+            f"User message: {message_in.message}"
+        )
+    
+    # Initialize LLM provider and model
+    llm_provider = "local"
+    llm_model = getattr(settings, 'LOCAL_LLM_MODEL', 'tinyllama')
+    
+    try:
+        llm = LLMService(provider=llm_provider, model=llm_model)
+        
+        if context_text:
+            # Use the helper that's meant for QA over context
+            response_text = await llm.answer_question(
+                question=message_in.message,
+                context=context_text,
+                language=message_in.language or "en",
+            )
+        else:
+            response_text = await llm.generate(
+                prompt=message_in.message,
+                system_prompt=system_prompt,
+                max_tokens=500,
+                temperature=0.7,
+            )
+        
+        logger.info(f"LLM response generated successfully using {llm_provider}/{llm_model}")
+        
+    except LLMError as e:
+        # Known LLM/HTTP issues: log, then fall back
+        logger.exception("LLMError while generating chat response")
+        response_text = (
+            f"I received your message but the AI model is temporarily unavailable. "
+            f"Please try again in a moment. Error: {str(e)}"
+        )
+        llm_provider = "error"
+        llm_model = "placeholder"
+    except Exception as e:
+        # Any unexpected error: keep old placeholder behavior
+        logger.exception("Unexpected error while generating chat response")
+        response_text = (
+            f"I received your message: '{message_in.message}'. "
+            f"However, I encountered an issue connecting to the AI model."
+        )
+        llm_provider = "placeholder"
+        llm_model = "placeholder"
     
     # Add some helpful suggestions based on message content
     suggested_actions = []
