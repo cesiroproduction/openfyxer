@@ -98,3 +98,6 @@ temp/
 
 # Ruff
 .ruff_cache/
+
+# Ollama models (included in archive but not in git - too large)
+ollama/models/

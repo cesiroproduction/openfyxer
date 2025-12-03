@@ -137,13 +137,14 @@ services:
     restart: unless-stopped
 
   # Ollama LLM Server (runs on CPU by default, GPU optional)
-  # Auto-downloads tinyllama model on first startup
+  # Uses pre-downloaded tinyllama model from ./ollama/models directory
+  # Falls back to auto-download if model not present
   ollama:
     build:
       context: ./ollama
       dockerfile: Dockerfile
     volumes:
-      - ollama_models:/root/.ollama
+      - ./ollama/models:/root/.ollama
     ports:
       - "11434:11434"
     networks:
@@ -167,6 +168,5 @@ volumes:
   neo4j_data:
   neo4j_logs:
   redis_data:
-  ollama_models:
   uploads:
   audio:

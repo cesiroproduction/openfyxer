@@ -313,6 +313,20 @@ This document contains the complete list of all files included in the OpenFyxer 
 | `Dockerfile` | Custom Ollama image with auto-download |
 | `entrypoint.sh` | Entrypoint script that auto-downloads tinyllama |
 
+### Pre-downloaded Model (`ollama/models/`)
+
+**IMPORTANT**: This directory contains the pre-downloaded tinyllama model (~609MB) so you don't need to download it on first run.
+
+| File/Directory | Description |
+|----------------|-------------|
+| `id_ed25519` | Ollama identity key |
+| `id_ed25519.pub` | Ollama public key |
+| `models/` | Model files directory |
+| `models/blobs/sha256-*` | Model binary blobs (tinyllama weights) |
+| `models/manifests/registry.ollama.ai/library/tinyllama/latest` | Model manifest |
+
+The tinyllama model is a 1.1B parameter model (Q4_0 quantization, ~609MB) that runs on CPU.
+
 ## Documentation (`docs/`)
 
 | File | Description |
@@ -334,11 +348,14 @@ This document contains the complete list of all files included in the OpenFyxer 
 - **GitHub Actions**: 2
 - **Backend**: 54
 - **Frontend**: 43
-- **Ollama**: 2
+- **Ollama code**: 2
+- **Ollama models**: ~8 files (~609MB tinyllama model)
 - **Documentation**: 3
 - **Scripts**: 2
 
-**Total: 114 files**
+**Total: ~122 files (including pre-downloaded LLM model)**
+
+**Archive size**: ~500MB+ (includes tinyllama model)
 
 ## Docker Services
 
