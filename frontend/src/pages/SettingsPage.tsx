@@ -27,9 +27,9 @@ export default function SettingsPage() {
   const queryClient = useQueryClient()
   const { user, updateUser } = useAuthStore()
   const { theme, setTheme, language, setLanguage } = useSettingsStore()
-    const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
-    const [_showAddAccount, setShowAddAccount] = useState(false)
-    const [show2FASetup, setShow2FASetup] = useState(false)
+  const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
+  const [showAddAccount, setShowAddAccount] = useState(false)
+  const [show2FASetup, setShow2FASetup] = useState(false)
   const [qrCode, setQrCode] = useState<string | null>(null)
 
   const { data: settings } = useQuery({
@@ -61,6 +61,17 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['email-accounts'] })
       toast.success('Account removed')
     },
+  })
+
+  const addAccountMutation = useMutation({
+    mutationFn: (data: { provider: string; email_address: string; display_name?: string }) =>
+      emailService.addAccount(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['email-accounts'] })
+      setShowAddAccount(false)
+      toast.success('Email account added')
+    },
+    onError: () => toast.error('Failed to add email account'),
   })
 
   const setApiKeyMutation = useMutation({
@@ -511,6 +522,79 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {showAddAccount && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              {t('settings.addEmailAccount')}
+            </h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                const formData = new FormData(e.currentTarget)
+                addAccountMutation.mutate({
+                  provider: formData.get('provider') as string,
+                  email_address: formData.get('email_address') as string,
+                  display_name: formData.get('display_name') as string || undefined,
+                })
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Provider
+                </label>
+                <select name="provider" className="input mt-1" required>
+                  <option value="gmail">Gmail</option>
+                  <option value="outlook">Outlook</option>
+                  <option value="yahoo">Yahoo</option>
+                  <option value="imap">IMAP (Generic)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {t('auth.email')}
+                </label>
+                <input
+                  type="email"
+                  name="email_address"
+                  className="input mt-1"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Display Name (optional)
+                </label>
+                <input
+                  type="text"
+                  name="display_name"
+                  className="input mt-1"
+                  placeholder="Work Email"
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddAccount(false)}
+                  className="btn btn-secondary"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={addAccountMutation.isPending}
+                  className="btn btn-primary"
+                >
+                  {addAccountMutation.isPending ? t('common.loading') : t('common.add')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {show2FASetup && qrCode && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

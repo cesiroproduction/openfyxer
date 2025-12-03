@@ -52,7 +52,7 @@ export const ragService = {
 
   getDocuments: async (): Promise<Document[]> => {
     const response = await api.get('/rag/documents')
-    return response.data
+    return response.data.items || []
   },
 
   uploadDocument: async (file: File): Promise<Document> => {

@@ -41,9 +41,9 @@ export default function MeetingsPage() {
     mutationFn: (data: MeetingFormData) =>
       meetingService.createMeeting({
         title: data.title,
-        description: data.description,
-        meeting_date: data.meeting_date,
-        participants: data.participants?.split(',').map((p) => p.trim()),
+        description: data.description || undefined,
+        meeting_date: data.meeting_date || undefined,
+        participants: data.participants?.split(',').map((p) => p.trim()).filter(p => p) || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings'] })
@@ -51,6 +51,7 @@ export default function MeetingsPage() {
       reset()
       toast.success('Meeting created')
     },
+    onError: () => toast.error('Failed to create meeting'),
   })
 
   const deleteMutation = useMutation({

@@ -102,7 +102,7 @@ export const emailService = {
   },
 
   getAccounts: async (): Promise<EmailAccount[]> => {
-    const response = await api.get('/email-accounts')
+    const response = await api.get('/emails/accounts')
     return response.data
   },
 
@@ -111,20 +111,20 @@ export const emailService = {
     email_address: string
     display_name?: string
   }): Promise<EmailAccount> => {
-    const response = await api.post('/email-accounts', data)
+    const response = await api.post('/emails/accounts', data)
     return response.data
   },
 
   removeAccount: async (id: string): Promise<void> => {
-    await api.delete(`/email-accounts/${id}`)
+    await api.delete(`/emails/accounts/${id}`)
   },
 
   syncAccount: async (id: string): Promise<void> => {
-    await api.post(`/email-accounts/${id}/sync`)
+    await api.post(`/emails/accounts/${id}/sync`)
   },
 
   getOAuthUrl: async (provider: string): Promise<{ url: string }> => {
-    const response = await api.get(`/email-accounts/oauth/${provider}/url`)
+    const response = await api.get(`/emails/accounts/oauth/${provider}/url`)
     return response.data
   },
 

@@ -36,7 +36,7 @@ export const meetingService = {
       }
     })
     const response = await api.get(`/meetings?${params.toString()}`)
-    return response.data
+    return response.data.items || []
   },
 
   getMeeting: async (id: string): Promise<Meeting> => {
