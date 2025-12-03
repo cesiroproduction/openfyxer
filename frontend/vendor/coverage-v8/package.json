@@ -1,0 +1,6 @@
+{
+  "name": "@vitest/coverage-v8",
+  "version": "0.0.0-local",
+  "main": "index.js",
+  "type": "module"
+}

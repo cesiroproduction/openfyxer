@@ -3,7 +3,6 @@
 from functools import lru_cache
 from typing import List, Optional
 
-from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -62,17 +61,17 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/google/callback"
-    
+
     # Legacy Gmail OAuth2 (for backward compatibility)
     GMAIL_CLIENT_ID: Optional[str] = None
     GMAIL_CLIENT_SECRET: Optional[str] = None
     GMAIL_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/gmail/callback"
-    
+
     @property
     def google_client_id(self) -> Optional[str]:
         """Get Google client ID (prefer unified, fallback to Gmail-specific)."""
         return self.GOOGLE_CLIENT_ID or self.GMAIL_CLIENT_ID
-    
+
     @property
     def google_client_secret(self) -> Optional[str]:
         """Get Google client secret (prefer unified, fallback to Gmail-specific)."""

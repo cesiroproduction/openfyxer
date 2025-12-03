@@ -3,17 +3,17 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    auth,
-    users,
-    emails,
-    drafts,
-    calendar,
-    rag,
-    meetings,
-    settings,
-    chat,
     audit,
+    auth,
+    calendar,
+    chat,
+    drafts,
+    emails,
     integrations_google,
+    meetings,
+    rag,
+    settings,
+    users,
 )
 
 api_router = APIRouter()

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_pagination, Pagination
+from app.api.deps import Pagination, get_current_user, get_pagination
 from app.db.session import get_db
 from app.models.calendar_event import CalendarEvent
 from app.models.meeting import Meeting
@@ -42,37 +42,37 @@ async def list_meetings(
     """List all meetings."""
     query = select(Meeting).where(Meeting.user_id == current_user.id)
     count_query = select(func.count(Meeting.id)).where(Meeting.user_id == current_user.id)
-    
+
     if status_filter:
         query = query.where(Meeting.status == status_filter)
         count_query = count_query.where(Meeting.status == status_filter)
-    
+
     if search:
         search_filter = f"%{search}%"
         query = query.where(
-            (Meeting.title.ilike(search_filter)) |
-            (Meeting.transcript.ilike(search_filter)) |
-            (Meeting.summary.ilike(search_filter))
+            (Meeting.title.ilike(search_filter))
+            | (Meeting.transcript.ilike(search_filter))
+            | (Meeting.summary.ilike(search_filter))
         )
         count_query = count_query.where(
-            (Meeting.title.ilike(search_filter)) |
-            (Meeting.transcript.ilike(search_filter)) |
-            (Meeting.summary.ilike(search_filter))
+            (Meeting.title.ilike(search_filter))
+            | (Meeting.transcript.ilike(search_filter))
+            | (Meeting.summary.ilike(search_filter))
         )
-    
+
     # Get total count
     total_result = await db.execute(count_query)
     total = total_result.scalar()
-    
+
     # Get paginated results
     query = query.order_by(Meeting.created_at.desc())
     query = query.offset(pagination.offset).limit(pagination.limit)
-    
+
     result = await db.execute(query)
     meetings = result.scalars().all()
-    
+
     total_pages = (total + pagination.page_size - 1) // pagination.page_size
-    
+
     return MeetingListResponse(
         items=meetings,
         total=total,
@@ -98,13 +98,13 @@ async def create_meeting(
             )
         )
         event = event_result.scalar_one_or_none()
-        
+
         if not event:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Calendar event not found",
             )
-    
+
     meeting = Meeting(
         user_id=current_user.id,
         calendar_event_id=meeting_in.calendar_event_id,
@@ -114,11 +114,11 @@ async def create_meeting(
         participants=meeting_in.participants,
         status="pending",
     )
-    
+
     db.add(meeting)
     await db.commit()
     await db.refresh(meeting)
-    
+
     return meeting
 
 
@@ -136,13 +136,13 @@ async def get_meeting(
         )
     )
     meeting = result.scalar_one_or_none()
-    
+
     if not meeting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    
+
     return meeting
 
 
@@ -161,20 +161,20 @@ async def update_meeting(
         )
     )
     meeting = result.scalar_one_or_none()
-    
+
     if not meeting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    
+
     update_data = meeting_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(meeting, field, value)
-    
+
     await db.commit()
     await db.refresh(meeting)
-    
+
     return meeting
 
 
@@ -192,18 +192,18 @@ async def delete_meeting(
         )
     )
     meeting = result.scalar_one_or_none()
-    
+
     if not meeting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    
+
     # TODO: Delete audio file if exists
-    
+
     await db.delete(meeting)
     await db.commit()
-    
+
     return {"message": "Meeting deleted successfully"}
 
 
@@ -222,25 +222,30 @@ async def upload_meeting_audio(
         )
     )
     meeting = result.scalar_one_or_none()
-    
+
     if not meeting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    
+
     # Validate file type
-    allowed_types = ["audio/mpeg", "audio/wav", "audio/mp4", "audio/x-m4a", "audio/webm"]
+    allowed_types = [
+        "audio/mpeg",
+        "audio/wav",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/webm",
+    ]
     if file.content_type not in allowed_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Audio format not supported. Allowed: MP3, WAV, M4A, WebM",
+            detail="Audio format not supported. Allowed: MP3, WAV, M4A, WebM",
         )
-    
+
     # Read file
     content = await file.read()
-    file_size = len(content)
-    
+
     # Determine format
     audio_format = "unknown"
     if file.content_type == "audio/mpeg":
@@ -251,26 +256,27 @@ async def upload_meeting_audio(
         audio_format = "m4a"
     elif file.content_type == "audio/webm":
         audio_format = "webm"
-    
+
     # Generate unique filename
     import hashlib
+
     file_hash = hashlib.md5(content).hexdigest()[:8]
     stored_filename = f"{current_user.id}_{meeting_id}_{file_hash}.{audio_format}"
-    
+
     # TODO: Save file to storage
     file_path = f"/data/audio/{stored_filename}"
-    
+
     # TODO: Get audio duration
     audio_duration = None
-    
+
     # Update meeting
     meeting.audio_file_path = file_path
     meeting.audio_format = audio_format
     meeting.audio_duration_seconds = audio_duration
-    
+
     await db.commit()
     await db.refresh(meeting)
-    
+
     return meeting
 
 
@@ -289,44 +295,44 @@ async def transcribe_meeting(
         )
     )
     meeting = result.scalar_one_or_none()
-    
+
     if not meeting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    
+
     if not meeting.audio_file_path:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No audio file uploaded for this meeting",
         )
-    
+
     if meeting.status == "transcribing":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Transcription already in progress",
         )
-    
+
     # Update status
     meeting.status = "transcribing"
-    
+
     # Set transcription parameters
     language = "auto"
     model = "base"
     if request:
         language = request.language or language
         model = request.model or model
-    
+
     meeting.transcription_model = f"whisper-{model}"
-    
+
     await db.commit()
     await db.refresh(meeting)
-    
+
     # TODO: Trigger Celery task for transcription
     # from app.workers.tasks import transcribe_audio
     # transcribe_audio.delay(str(meeting_id), language, model)
-    
+
     return meeting
 
 
@@ -344,23 +350,23 @@ async def get_transcription_progress(
         )
     )
     meeting = result.scalar_one_or_none()
-    
+
     if not meeting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    
+
     # TODO: Get actual progress from Celery task
     progress = 0.0
     estimated_time = None
-    
+
     if meeting.status == "transcribed" or meeting.status == "summarized":
         progress = 100.0
     elif meeting.status == "transcribing":
         progress = 50.0  # Placeholder
         estimated_time = 60  # Placeholder
-    
+
     return TranscriptionProgress(
         meeting_id=meeting_id,
         status=meeting.status,
@@ -385,38 +391,41 @@ async def summarize_meeting(
         )
     )
     meeting = result.scalar_one_or_none()
-    
+
     if not meeting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    
+
     if not meeting.transcript:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Meeting has no transcript. Please transcribe first.",
         )
-    
+
     # TODO: Call LLM to generate summary
     # For now, create placeholder
     meeting.summary = f"Summary of meeting: {meeting.title}\n\nThis is a placeholder summary."
-    
+
     if request and request.include_action_items:
-        meeting.action_items = ["Action item 1 (placeholder)", "Action item 2 (placeholder)"]
-    
+        meeting.action_items = [
+            "Action item 1 (placeholder)",
+            "Action item 2 (placeholder)",
+        ]
+
     if request and request.include_key_decisions:
         meeting.key_decisions = ["Key decision 1 (placeholder)"]
-    
+
     if request and request.include_topics:
         meeting.topics = ["Topic 1", "Topic 2"]
-    
+
     meeting.status = "summarized"
     meeting.summarized_at = datetime.utcnow()
-    
+
     await db.commit()
     await db.refresh(meeting)
-    
+
     return meeting
 
 
@@ -435,22 +444,22 @@ async def generate_follow_up_email(
         )
     )
     meeting = result.scalar_one_or_none()
-    
+
     if not meeting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    
+
     if not meeting.summary and not meeting.transcript:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Meeting has no summary or transcript",
         )
-    
+
     # TODO: Generate follow-up email using LLM
     # For now, return placeholder
-    
+
     email_content = f"""Subject: Follow-up: {meeting.title}
 
 Hi,
@@ -458,27 +467,27 @@ Hi,
 Thank you for attending the meeting "{meeting.title}".
 
 """
-    
+
     if request.include_summary and meeting.summary:
         email_content += f"Summary:\n{meeting.summary}\n\n"
-    
+
     if request.include_action_items and meeting.action_items:
         email_content += "Action Items:\n"
         for item in meeting.action_items:
             email_content += f"- {item}\n"
         email_content += "\n"
-    
+
     if request.include_key_decisions and meeting.key_decisions:
         email_content += "Key Decisions:\n"
         for decision in meeting.key_decisions:
             email_content += f"- {decision}\n"
         email_content += "\n"
-    
+
     if request.additional_notes:
         email_content += f"Additional Notes:\n{request.additional_notes}\n\n"
-    
+
     email_content += "Best regards"
-    
+
     return {
         "subject": f"Follow-up: {meeting.title}",
         "recipients": request.recipients,
@@ -502,22 +511,22 @@ async def send_follow_up_email(
         )
     )
     meeting = result.scalar_one_or_none()
-    
+
     if not meeting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    
+
     # Generate email content
-    follow_up = await generate_follow_up_email(meeting_id, request, current_user, db)
-    
+    await generate_follow_up_email(meeting_id, request, current_user, db)
+
     # TODO: Actually send the email
-    
+
     # Update meeting
     meeting.follow_up_email_sent = True
     await db.commit()
-    
+
     return {
         "message": "Follow-up email sent successfully",
         "recipients": request.recipients,

@@ -1,7 +1,6 @@
 """Encryption utilities for sensitive data."""
 
 import base64
-import os
 from typing import Optional
 
 from cryptography.fernet import Fernet
@@ -21,9 +20,7 @@ def _get_fernet_key() -> bytes:
         salt=salt,
         iterations=100000,
     )
-    key = base64.urlsafe_b64encode(
-        kdf.derive(settings.ENCRYPTION_KEY.encode())
-    )
+    key = base64.urlsafe_b64encode(kdf.derive(settings.ENCRYPTION_KEY.encode()))
     return key
 
 
@@ -36,7 +33,7 @@ def encrypt_value(value: str) -> str:
     """Encrypt a string value."""
     if not value:
         return ""
-    
+
     fernet = _get_fernet()
     encrypted = fernet.encrypt(value.encode())
     return base64.urlsafe_b64encode(encrypted).decode()
@@ -46,7 +43,7 @@ def decrypt_value(encrypted_value: str) -> Optional[str]:
     """Decrypt an encrypted string value."""
     if not encrypted_value:
         return None
-    
+
     try:
         fernet = _get_fernet()
         encrypted_bytes = base64.urlsafe_b64decode(encrypted_value.encode())

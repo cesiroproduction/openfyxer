@@ -54,9 +54,7 @@ class UserSettingsUpdate(BaseModel):
     default_meeting_duration: Optional[int] = Field(default=None, ge=15, le=480)
 
     # Whisper/STT Settings
-    whisper_model: Optional[str] = Field(
-        default=None, pattern="^(tiny|base|small|medium|large)$"
-    )
+    whisper_model: Optional[str] = Field(default=None, pattern="^(tiny|base|small|medium|large)$")
 
     # UI Settings
     theme: Optional[str] = Field(default=None, pattern="^(light|dark|system)$")

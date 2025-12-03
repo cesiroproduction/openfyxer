@@ -91,7 +91,7 @@ class TestEmailEndpoints:
 
     def test_mark_email_as_read(self, client, auth_headers):
         """Test marking email as read."""
-        response = client.post(
+        response = client.put(
             "/api/v1/emails/email123/read",
             headers=auth_headers,
         )
@@ -100,7 +100,7 @@ class TestEmailEndpoints:
 
     def test_archive_email(self, client, auth_headers):
         """Test archiving an email."""
-        response = client.post(
+        response = client.put(
             "/api/v1/emails/email123/archive",
             headers=auth_headers,
         )
@@ -114,7 +114,7 @@ class TestDraftEndpoints:
     def test_generate_draft(self, client, auth_headers):
         """Test generating a draft reply."""
         response = client.post(
-            "/api/v1/drafts/generate",
+            "/api/v1/drafts",
             headers=auth_headers,
             json={
                 "email_id": "email123",
@@ -209,7 +209,7 @@ class TestCalendarEndpoints:
     def test_check_conflicts(self, client, auth_headers):
         """Test checking for event conflicts."""
         response = client.post(
-            "/api/v1/calendar/conflicts",
+            "/api/v1/calendar/events/event123/check-conflicts",
             headers=auth_headers,
             json={
                 "start_time": "2024-01-20T10:00:00Z",

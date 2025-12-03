@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.encryption import decrypt_value
+from app.core.encryption import decrypt_value, encrypt_value
 from app.core.exceptions import EmailProviderError
 from app.models.email import Email
 from app.models.email_account import EmailAccount
@@ -68,7 +68,9 @@ class EmailService:
                 raise EmailProviderError("Gmail OAuth token not configured")
 
             token = decrypt_value(account.oauth_token)
-            refresh_token = decrypt_value(account.oauth_refresh_token) if account.oauth_refresh_token else None
+            refresh_token = (
+                decrypt_value(account.oauth_refresh_token) if account.oauth_refresh_token else None
+            )
 
             creds = Credentials(
                 token=token,
@@ -78,24 +80,44 @@ class EmailService:
                 client_secret=settings.google_client_secret,
             )
 
+            # Refresh token if needed and persist the new credentials
+            if creds.expired and creds.refresh_token:
+                from google.auth.transport.requests import Request
+
+                creds.refresh(Request())
+                account.oauth_token = encrypt_value(creds.token)
+                if creds.refresh_token:
+                    account.oauth_refresh_token = encrypt_value(creds.refresh_token)
+                account.oauth_token_expiry = creds.expiry
+
             service = build("gmail", "v1", credentials=creds)
 
             # Get messages
-            results = service.users().messages().list(
-                userId="me",
-                maxResults=max_emails,
-                labelIds=["INBOX"],
-            ).execute()
+            results = (
+                service.users()
+                .messages()
+                .list(
+                    userId="me",
+                    maxResults=max_emails,
+                    labelIds=["INBOX"],
+                )
+                .execute()
+            )
 
             messages = results.get("messages", [])
             synced_emails = []
 
             for msg in messages:
-                msg_data = service.users().messages().get(
-                    userId="me",
-                    id=msg["id"],
-                    format="full",
-                ).execute()
+                msg_data = (
+                    service.users()
+                    .messages()
+                    .get(
+                        userId="me",
+                        id=msg["id"],
+                        format="full",
+                    )
+                    .execute()
+                )
 
                 email_obj = await self._parse_gmail_message(account, msg_data)
                 if email_obj:
@@ -117,7 +139,6 @@ class EmailService:
     ) -> List[Email]:
         """Sync emails from Outlook using OAuth."""
         try:
-            import msal
             import requests
 
             if not account.oauth_token:
@@ -131,7 +152,9 @@ class EmailService:
             }
 
             # Get messages from inbox
-            url = f"https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$top={max_emails}"
+            url = (
+                f"https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$top={max_emails}"
+            )
             response = requests.get(url, headers=headers)
 
             if response.status_code != 200:
@@ -249,15 +272,17 @@ class EmailService:
                 if msg_data[0]:
                     raw_email = msg_data[0][1]
                     msg = email.message_from_bytes(raw_email)
-                    emails.append({
-                        "message_id": msg.get("Message-ID", ""),
-                        "subject": msg.get("Subject", ""),
-                        "from": msg.get("From", ""),
-                        "to": msg.get("To", ""),
-                        "cc": msg.get("Cc", ""),
-                        "date": msg.get("Date", ""),
-                        "body": self._get_email_body(msg),
-                    })
+                    emails.append(
+                        {
+                            "message_id": msg.get("Message-ID", ""),
+                            "subject": msg.get("Subject", ""),
+                            "from": msg.get("From", ""),
+                            "to": msg.get("To", ""),
+                            "cc": msg.get("Cc", ""),
+                            "date": msg.get("Date", ""),
+                            "body": self._get_email_body(msg),
+                        }
+                    )
 
             mail.logout()
 
@@ -297,7 +322,9 @@ class EmailService:
     ) -> Optional[Email]:
         """Parse Gmail message into Email model."""
         try:
-            headers = {h["name"]: h["value"] for h in msg_data.get("payload", {}).get("headers", [])}
+            headers = {
+                h["name"]: h["value"] for h in msg_data.get("payload", {}).get("headers", [])
+            }
 
             # Check if email already exists
             message_id = msg_data.get("id", "")
@@ -340,9 +367,7 @@ class EmailService:
                 body_html=body_html,
                 snippet=msg_data.get("snippet"),
                 labels=msg_data.get("labelIds"),
-                has_attachments=any(
-                    part.get("filename") for part in payload.get("parts", [])
-                ),
+                has_attachments=any(part.get("filename") for part in payload.get("parts", [])),
                 is_read="UNREAD" not in msg_data.get("labelIds", []),
                 is_starred="STARRED" in msg_data.get("labelIds", []),
                 received_at=datetime.fromtimestamp(int(msg_data.get("internalDate", 0)) / 1000),
@@ -389,12 +414,26 @@ class EmailService:
                     r.get("emailAddress", {}).get("address", "")
                     for r in msg_data.get("ccRecipients", [])
                 ],
-                body_text=msg_data.get("body", {}).get("content", "") if msg_data.get("body", {}).get("contentType") == "text" else None,
-                body_html=msg_data.get("body", {}).get("content", "") if msg_data.get("body", {}).get("contentType") == "html" else None,
+                body_text=(
+                    msg_data.get("body", {}).get("content", "")
+                    if msg_data.get("body", {}).get("contentType") == "text"
+                    else None
+                ),
+                body_html=(
+                    msg_data.get("body", {}).get("content", "")
+                    if msg_data.get("body", {}).get("contentType") == "html"
+                    else None
+                ),
                 snippet=msg_data.get("bodyPreview"),
                 has_attachments=msg_data.get("hasAttachments", False),
                 is_read=msg_data.get("isRead", False),
-                received_at=datetime.fromisoformat(msg_data.get("receivedDateTime", "").replace("Z", "+00:00")) if msg_data.get("receivedDateTime") else None,
+                received_at=(
+                    datetime.fromisoformat(
+                        msg_data.get("receivedDateTime", "").replace("Z", "+00:00")
+                    )
+                    if msg_data.get("receivedDateTime")
+                    else None
+                ),
             )
 
             self.db.add(email_obj)
@@ -478,7 +517,9 @@ class EmailService:
             from googleapiclient.discovery import build
 
             token = decrypt_value(account.oauth_token)
-            refresh_token = decrypt_value(account.oauth_refresh_token) if account.oauth_refresh_token else None
+            refresh_token = (
+                decrypt_value(account.oauth_refresh_token) if account.oauth_refresh_token else None
+            )
 
             creds = Credentials(
                 token=token,
@@ -543,9 +584,7 @@ class EmailService:
                         "contentType": "HTML" if html_body else "Text",
                         "content": html_body or body,
                     },
-                    "toRecipients": [
-                        {"emailAddress": {"address": addr}} for addr in to
-                    ],
+                    "toRecipients": [{"emailAddress": {"address": addr}} for addr in to],
                 },
                 "saveToSentItems": True,
             }
@@ -658,7 +697,17 @@ class EmailService:
     async def detect_language(self, text: str) -> str:
         """Detect language of text."""
         # Simple language detection based on common words
-        romanian_words = ["și", "este", "pentru", "care", "sunt", "sau", "dar", "mai", "poate"]
+        romanian_words = [
+            "și",
+            "este",
+            "pentru",
+            "care",
+            "sunt",
+            "sau",
+            "dar",
+            "mai",
+            "poate",
+        ]
         text_lower = text.lower()
 
         romanian_count = sum(1 for word in romanian_words if word in text_lower)

@@ -10,6 +10,7 @@ from app.workers.celery_app import celery_app
 def get_async_session():
     """Get async database session for tasks."""
     from app.db.session import async_session_maker
+
     return async_session_maker()
 
 
@@ -32,10 +33,12 @@ def transcribe_meeting(
     model: str = "base",
 ):
     """Transcribe meeting audio."""
+
     async def _transcribe():
         from sqlalchemy import select
-        from app.models.meeting import Meeting
+
         from app.models.audit_log import AuditLog
+        from app.models.meeting import Meeting
         from app.services.transcription_service import TranscriptionService
 
         async with get_async_session() as db:
@@ -96,10 +99,12 @@ def transcribe_meeting(
 
                 # Trigger indexing
                 from app.workers.tasks.rag_tasks import index_meeting
+
                 index_meeting.delay(meeting_id, user_id)
 
                 # Send notification
                 from app.workers.tasks.notification_tasks import send_notification
+
                 send_notification.delay(
                     user_id,
                     "transcription_complete",
@@ -141,10 +146,12 @@ def transcribe_meeting(
 @celery_app.task(bind=True, max_retries=2)
 def summarize_meeting(self, meeting_id: str, user_id: str, language: str = None):
     """Summarize meeting transcript."""
+
     async def _summarize():
         from sqlalchemy import select
-        from app.models.meeting import Meeting
+
         from app.models.audit_log import AuditLog
+        from app.models.meeting import Meeting
         from app.services.llm_service import LLMService
 
         async with get_async_session() as db:
@@ -196,6 +203,7 @@ def summarize_meeting(self, meeting_id: str, user_id: str, language: str = None)
 
                 # Send notification
                 from app.workers.tasks.notification_tasks import send_notification
+
                 send_notification.delay(
                     user_id,
                     "transcription_complete",

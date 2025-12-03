@@ -1,18 +1,13 @@
 """Authentication endpoints."""
 
 import uuid
-from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import (
-    get_client_ip,
-    get_current_user,
-    get_user_agent,
-)
+from app.api.deps import get_client_ip, get_current_user, get_user_agent
 from app.core.config import settings
 from app.core.security import (
     create_access_token,
@@ -75,13 +70,13 @@ async def register(
     # Check if user already exists
     result = await db.execute(select(User).where(User.email == user_in.email))
     existing_user = result.scalar_one_or_none()
-    
+
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered",
         )
-    
+
     # Create new user
     user = User(
         email=user_in.email,
@@ -92,18 +87,18 @@ async def register(
     )
     db.add(user)
     await db.flush()
-    
+
     # Create default user settings
     user_settings = UserSettings(user_id=user.id)
     db.add(user_settings)
-    
+
     await db.commit()
     await db.refresh(user)
-    
+
     # Create tokens for auto-login after registration
     access_token = create_access_token(subject=str(user.id))
     refresh_token = create_refresh_token(subject=str(user.id))
-    
+
     # Create audit log
     await create_audit_log(
         db=db,
@@ -112,7 +107,7 @@ async def register(
         request=request,
         details={"email": user.email},
     )
-    
+
     return RegisterResponse(
         user=user,
         access_token=access_token,
@@ -132,19 +127,19 @@ async def login(
     # Find user
     result = await db.execute(select(User).where(User.email == user_in.email))
     user = result.scalar_one_or_none()
-    
+
     if not user or not verify_password(user_in.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
-    
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is disabled",
         )
-    
+
     # Check 2FA if enabled
     if user.is_2fa_enabled:
         if not user_in.totp_code:
@@ -152,7 +147,7 @@ async def login(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="2FA code required",
             )
-        
+
         if not user.totp_secret or not verify_totp(user.totp_secret, user_in.totp_code):
             await create_audit_log(
                 db=db,
@@ -166,11 +161,11 @@ async def login(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid 2FA code",
             )
-    
+
     # Create tokens
     access_token = create_access_token(subject=str(user.id))
     refresh_token = create_refresh_token(subject=str(user.id))
-    
+
     # Create audit log
     await create_audit_log(
         db=db,
@@ -178,7 +173,7 @@ async def login(
         action="login",
         request=request,
     )
-    
+
     return Token(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -195,40 +190,40 @@ async def refresh_token(
 ) -> Any:
     """Refresh access token using refresh token."""
     payload = decode_token(refresh_token)
-    
+
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
         )
-    
+
     if payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token type",
         )
-    
+
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
         )
-    
+
     # Verify user exists and is active
     result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
     user = result.scalar_one_or_none()
-    
+
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive",
         )
-    
+
     # Create new tokens
     new_access_token = create_access_token(subject=str(user.id))
     new_refresh_token = create_refresh_token(subject=str(user.id))
-    
+
     return Token(
         access_token=new_access_token,
         refresh_token=new_refresh_token,
@@ -251,7 +246,7 @@ async def logout(
         action="logout",
         request=request,
     )
-    
+
     return {"message": "Successfully logged out"}
 
 
@@ -267,16 +262,16 @@ async def setup_2fa(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="2FA is already enabled",
         )
-    
+
     # Generate new TOTP secret
     secret = generate_totp_secret()
     uri = get_totp_uri(secret, current_user.email, settings.APP_NAME)
     qr_code = generate_totp_qr_code(uri)
-    
+
     # Store secret temporarily (not enabled yet)
     current_user.totp_secret = secret
     await db.commit()
-    
+
     return TwoFactorSetup(
         secret=secret,
         qr_code=qr_code,
@@ -297,23 +292,23 @@ async def verify_2fa(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="2FA is already enabled",
         )
-    
+
     if not current_user.totp_secret:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="2FA setup not initiated. Call /2fa/setup first.",
         )
-    
+
     if not verify_totp(current_user.totp_secret, verify_in.code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid verification code",
         )
-    
+
     # Enable 2FA
     current_user.is_2fa_enabled = True
     await db.commit()
-    
+
     # Create audit log
     await create_audit_log(
         db=db,
@@ -321,7 +316,7 @@ async def verify_2fa(
         action="2fa_enabled",
         request=request,
     )
-    
+
     return {"message": "2FA enabled successfully"}
 
 
@@ -338,20 +333,18 @@ async def disable_2fa(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="2FA is not enabled",
         )
-    
-    if not current_user.totp_secret or not verify_totp(
-        current_user.totp_secret, verify_in.code
-    ):
+
+    if not current_user.totp_secret or not verify_totp(current_user.totp_secret, verify_in.code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid verification code",
         )
-    
+
     # Disable 2FA
     current_user.is_2fa_enabled = False
     current_user.totp_secret = None
     await db.commit()
-    
+
     # Create audit log
     await create_audit_log(
         db=db,
@@ -359,7 +352,7 @@ async def disable_2fa(
         action="2fa_disabled",
         request=request,
     )
-    
+
     return {"message": "2FA disabled successfully"}
 
 

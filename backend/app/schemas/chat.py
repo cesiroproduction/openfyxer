@@ -11,9 +11,7 @@ class ChatMessage(BaseModel):
     """Schema for chat message."""
 
     message: str = Field(..., min_length=1, max_length=2000)
-    context_type: Optional[str] = Field(
-        default=None, pattern="^(email|document|meeting|general)$"
-    )
+    context_type: Optional[str] = Field(default=None, pattern="^(email|document|meeting|general)$")
     context_id: Optional[UUID] = None
     language: Optional[str] = Field(default=None, pattern="^(en|ro)$")
 
