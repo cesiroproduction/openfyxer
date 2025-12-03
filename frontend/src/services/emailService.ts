@@ -73,7 +73,7 @@ export const emailService = {
       }
     })
     const response = await api.get(`/emails?${params.toString()}`)
-    return response.data
+    return response.data.items || []
   },
 
   getEmail: async (id: string): Promise<Email> => {
