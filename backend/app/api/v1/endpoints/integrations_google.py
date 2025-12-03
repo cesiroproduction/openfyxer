@@ -22,12 +22,14 @@ router = APIRouter()
 
 # Google OAuth scopes for Gmail and Calendar
 GOOGLE_SCOPES = [
+    "openid",
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/userinfo.email",
 ]
+
 
 # Store state tokens temporarily (in production, use Redis or DB)
 _oauth_states: dict = {}
