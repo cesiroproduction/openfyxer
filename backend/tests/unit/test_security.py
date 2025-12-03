@@ -139,7 +139,13 @@ class TestSecurity:
     def _sanitize_input(self, text: str) -> str:
         """Sanitize input to prevent XSS."""
         import html
-        return html.escape(text)
+        import re
+
+        # Strip script tags and their contents, then escape residual HTML entities
+        without_scripts = re.sub(
+            r"<script.*?>.*?</script>", "", text, flags=re.IGNORECASE | re.DOTALL
+        )
+        return html.escape(without_scripts)
 
     def test_sql_injection_prevention(self):
         """Test SQL injection prevention."""

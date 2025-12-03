@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.encryption import decrypt_value
+from app.core.encryption import decrypt_value, encrypt_value
 from app.core.exceptions import EmailProviderError
 from app.models.email import Email
 from app.models.email_account import EmailAccount
@@ -77,6 +77,16 @@ class EmailService:
                 client_id=settings.google_client_id,
                 client_secret=settings.google_client_secret,
             )
+
+            # Refresh token if needed and persist the new credentials
+            if creds.expired and creds.refresh_token:
+                from google.auth.transport.requests import Request
+
+                creds.refresh(Request())
+                account.oauth_token = encrypt_value(creds.token)
+                if creds.refresh_token:
+                    account.oauth_refresh_token = encrypt_value(creds.refresh_token)
+                account.oauth_token_expiry = creds.expiry
 
             service = build("gmail", "v1", credentials=creds)
 

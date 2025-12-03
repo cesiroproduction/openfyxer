@@ -5,10 +5,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.types import StringArray
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -67,19 +68,19 @@ class Meeting(Base):
         nullable=True,
     )
     action_items: Mapped[Optional[List[str]]] = mapped_column(
-        ARRAY(String),
+        StringArray(),
         nullable=True,
     )
     key_decisions: Mapped[Optional[List[str]]] = mapped_column(
-        ARRAY(String),
+        StringArray(),
         nullable=True,
     )
     participants: Mapped[Optional[List[str]]] = mapped_column(
-        ARRAY(String),
+        StringArray(),
         nullable=True,
     )
     topics: Mapped[Optional[List[str]]] = mapped_column(
-        ARRAY(String),
+        StringArray(),
         nullable=True,
     )
     status: Mapped[str] = mapped_column(

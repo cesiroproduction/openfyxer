@@ -5,10 +5,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.types import StringArray
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -71,7 +72,7 @@ class CalendarEvent(Base):
         nullable=True,
     )
     attendees: Mapped[Optional[List[str]]] = mapped_column(
-        ARRAY(String),
+        StringArray(),
         nullable=True,
     )
     organizer: Mapped[Optional[str]] = mapped_column(

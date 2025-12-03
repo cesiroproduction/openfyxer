@@ -10,9 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_pagination, Pagination
 from app.db.session import get_db
+from app.core.encryption import decrypt_value
+from app.core.exceptions import CalendarProviderError
 from app.models.calendar_event import CalendarEvent
+from app.models.email_account import EmailAccount
 from app.models.user import User
 from app.models.user_settings import UserSettings
+from app.services.calendar_service import CalendarService
 from app.schemas.calendar import (
     AvailableSlot,
     AvailableSlotsRequest,
@@ -441,12 +445,88 @@ async def sync_calendars(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Sync calendars with external providers."""
-    # TODO: Trigger Celery task for calendar sync
-    
-    return {
-        "message": "Calendar sync started",
-        "provider": provider or "all",
-    }
+    calendar_service = CalendarService(db)
+
+    account_query = select(EmailAccount).where(
+        EmailAccount.user_id == current_user.id,
+        EmailAccount.is_active == True,  # noqa: E712
+        EmailAccount.sync_enabled == True,  # noqa: E712
+    )
+
+    if provider == "google":
+        account_query = account_query.where(EmailAccount.provider == "gmail")
+    elif provider == "outlook":
+        account_query = account_query.where(EmailAccount.provider == "outlook")
+
+    result = await db.execute(account_query)
+    accounts = result.scalars().all()
+
+    if not accounts:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No connected accounts available for calendar sync",
+        )
+
+    summary = []
+    total_synced = 0
+
+    try:
+        for account in accounts:
+            if account.provider == "gmail" and account.oauth_token:
+                events = await calendar_service.sync_google_calendar(
+                    user_id=current_user.id,
+                    oauth_token=decrypt_value(account.oauth_token),
+                    refresh_token=decrypt_value(account.oauth_refresh_token)
+                    if account.oauth_refresh_token
+                    else None,
+                    calendar_id="primary",
+                )
+            elif account.provider == "outlook" and account.oauth_token:
+                events = await calendar_service.sync_outlook_calendar(
+                    user_id=current_user.id,
+                    oauth_token=decrypt_value(account.oauth_token),
+                )
+            else:
+                summary.append(
+                    {
+                        "account_id": str(account.id),
+                        "provider": account.provider,
+                        "synced_count": 0,
+                        "status": "skipped_no_token",
+                    }
+                )
+                continue
+
+            account.last_sync = datetime.utcnow()
+            await db.commit()
+
+            summary.append(
+                {
+                    "account_id": str(account.id),
+                    "provider": account.provider,
+                    "synced_count": len(events),
+                    "status": "success",
+                }
+            )
+            total_synced += len(events)
+
+        return {
+            "message": "Calendar sync completed",
+            "provider": provider or "all",
+            "synced_events": total_synced,
+            "accounts": summary,
+        }
+
+    except CalendarProviderError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to sync calendars: {str(e)}",
+        )
 
 
 @router.get("/today", response_model=List[CalendarEventResponse])
