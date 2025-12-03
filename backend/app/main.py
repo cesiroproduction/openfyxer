@@ -10,8 +10,8 @@ from fastapi.responses import JSONResponse
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exceptions import OpenFyxerException
-from app.db.session import engine
 from app.db.base import Base
+from app.db.session import engine
 
 
 @asynccontextmanager
@@ -19,13 +19,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Application lifespan events."""
     # Startup
     print(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    
+
     # Create database tables (in production, use Alembic migrations)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield
-    
+
     # Shutdown
     print(f"Shutting down {settings.APP_NAME}")
     await engine.dispose()
@@ -79,6 +79,7 @@ async def health_check():
 async def health_check_db():
     """Database health check."""
     from sqlalchemy import text
+
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -96,7 +97,7 @@ app.include_router(api_router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",

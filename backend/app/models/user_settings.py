@@ -5,10 +5,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.types import IntegerArray, JSONBType, StringArray
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -82,7 +83,7 @@ class UserSettings(Base):
         nullable=True,
     )
     notification_preferences: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSONBType(),
         nullable=True,
     )  # Detailed notification rules
 
@@ -96,7 +97,7 @@ class UserSettings(Base):
         nullable=True,
     )
     learned_style_profile: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSONBType(),
         nullable=True,
     )  # AI-learned style preferences
 
@@ -115,7 +116,7 @@ class UserSettings(Base):
         default=3,
     )
     priority_contacts: Mapped[Optional[List[str]]] = mapped_column(
-        ARRAY(String),
+        StringArray(),
         nullable=True,
     )  # VIP contacts for urgent notifications
 
@@ -129,7 +130,7 @@ class UserSettings(Base):
         default="17:00",
     )
     working_days: Mapped[Optional[List[int]]] = mapped_column(
-        ARRAY(Integer),
+        IntegerArray(),
         default=[1, 2, 3, 4, 5],  # Monday to Friday
     )
     meeting_buffer_minutes: Mapped[int] = mapped_column(
@@ -153,7 +154,7 @@ class UserSettings(Base):
         default="light",
     )  # light, dark, system
     dashboard_widgets: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSONBType(),
         nullable=True,
     )
 

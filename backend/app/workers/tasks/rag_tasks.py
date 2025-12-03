@@ -1,7 +1,6 @@
 """RAG and indexing Celery tasks."""
 
 import asyncio
-from datetime import datetime
 from uuid import UUID
 
 from app.workers.celery_app import celery_app
@@ -10,6 +9,7 @@ from app.workers.celery_app import celery_app
 def get_async_session():
     """Get async database session for tasks."""
     from app.db.session import async_session_maker
+
     return async_session_maker()
 
 
@@ -26,8 +26,10 @@ def run_async(coro):
 @celery_app.task(bind=True, max_retries=3)
 def index_email(self, email_id: str, user_id: str):
     """Index an email in the knowledge graph."""
+
     async def _index():
         from sqlalchemy import select
+
         from app.models.email import Email
         from app.models.email_account import EmailAccount
         from app.services.rag_service import RAGService
@@ -79,8 +81,10 @@ def index_email(self, email_id: str, user_id: str):
 @celery_app.task(bind=True, max_retries=3)
 def index_document(self, document_id: str, user_id: str):
     """Index a document in the knowledge graph."""
+
     async def _index():
         from sqlalchemy import select
+
         from app.models.document import Document
         from app.services.rag_service import RAGService
 
@@ -126,8 +130,10 @@ def index_document(self, document_id: str, user_id: str):
 @celery_app.task(bind=True, max_retries=3)
 def index_meeting(self, meeting_id: str, user_id: str):
     """Index a meeting in the knowledge graph."""
+
     async def _index():
         from sqlalchemy import select
+
         from app.models.meeting import Meeting
         from app.services.rag_service import RAGService
 
@@ -173,11 +179,13 @@ def index_meeting(self, meeting_id: str, user_id: str):
 @celery_app.task
 def reindex_all(user_id: str):
     """Reindex all content for a user."""
+
     async def _reindex():
         from sqlalchemy import select
+
+        from app.models.document import Document
         from app.models.email import Email
         from app.models.email_account import EmailAccount
-        from app.models.document import Document
         from app.models.meeting import Meeting
 
         async with get_async_session() as db:
@@ -221,10 +229,13 @@ def reindex_all(user_id: str):
 @celery_app.task
 def extract_document_content(document_id: str, user_id: str):
     """Extract text content from a document."""
+
     async def _extract():
-        from sqlalchemy import select
-        from app.models.document import Document
         import os
+
+        from sqlalchemy import select
+
+        from app.models.document import Document
 
         async with get_async_session() as db:
             # Get document
@@ -248,6 +259,7 @@ def extract_document_content(document_id: str, user_id: str):
             if document.file_type == "pdf":
                 try:
                     import pypdf
+
                     with open(document.file_path, "rb") as f:
                         reader = pypdf.PdfReader(f)
                         content_text = ""
@@ -260,10 +272,14 @@ def extract_document_content(document_id: str, user_id: str):
             elif document.file_type == "docx":
                 try:
                     from docx import Document as DocxDocument
+
                     doc = DocxDocument(document.file_path)
                     content_text = "\n".join([p.text for p in doc.paragraphs])
                 except Exception as e:
-                    return {"status": "error", "message": f"DOCX extraction failed: {e}"}
+                    return {
+                        "status": "error",
+                        "message": f"DOCX extraction failed: {e}",
+                    }
 
             elif document.file_type == "txt":
                 try:
@@ -278,6 +294,7 @@ def extract_document_content(document_id: str, user_id: str):
 
                 # Generate summary using LLM
                 from app.services.llm_service import LLMService
+
                 llm_service = LLMService()
 
                 try:

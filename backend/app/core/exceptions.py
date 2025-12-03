@@ -33,7 +33,9 @@ class AuthorizationError(OpenFyxerException):
 class ValidationError(OpenFyxerException):
     """Validation related errors."""
 
-    def __init__(self, message: str = "Validation failed", details: Optional[Dict] = None):
+    def __init__(
+        self, message: str = "Validation failed", details: Optional[Dict] = None
+    ):
         super().__init__(message, details)
 
 

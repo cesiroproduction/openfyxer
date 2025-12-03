@@ -5,10 +5,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from sqlalchemy import DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.types import JSONBType
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -43,7 +44,7 @@ class AuditLog(Base):
         nullable=True,
     )
     details: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSONBType(),
         nullable=True,
     )
     ip_address: Mapped[Optional[str]] = mapped_column(

@@ -1,15 +1,15 @@
 """Security utilities for authentication and authorization."""
 
+import base64
 from datetime import datetime, timedelta
+from io import BytesIO
 from typing import Any, Optional, Union
 
-from jose import JWTError, jwt
 import bcrypt
 import pyotp
 import qrcode
 import qrcode.image.svg
-from io import BytesIO
-import base64
+from jose import JWTError, jwt
 
 from app.core.config import settings
 
@@ -17,15 +17,14 @@ from app.core.config import settings
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
     return bcrypt.checkpw(
-        plain_password.encode('utf-8'),
-        hashed_password.encode('utf-8')
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
     )
 
 
 def get_password_hash(password: str) -> str:
     """Generate password hash using bcrypt."""
     salt = bcrypt.gensalt(rounds=12)
-    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
 def create_access_token(
@@ -39,7 +38,7 @@ def create_access_token(
         expire = datetime.utcnow() + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
-    
+
     to_encode = {
         "exp": expire,
         "sub": str(subject),
@@ -59,10 +58,8 @@ def create_refresh_token(
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
-            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
-        )
-    
+        expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+
     to_encode = {
         "exp": expire,
         "sub": str(subject),
@@ -99,7 +96,7 @@ def get_totp_uri(secret: str, email: str) -> str:
 def generate_totp_qr_code(secret: str, email: str) -> str:
     """Generate QR code for TOTP setup as base64 string."""
     uri = get_totp_uri(secret, email)
-    
+
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -108,13 +105,13 @@ def generate_totp_qr_code(secret: str, email: str) -> str:
     )
     qr.add_data(uri)
     qr.make(fit=True)
-    
+
     img = qr.make_image(fill_color="black", back_color="white")
-    
+
     buffer = BytesIO()
     img.save(buffer, format="PNG")
     buffer.seek(0)
-    
+
     return base64.b64encode(buffer.getvalue()).decode()
 
 

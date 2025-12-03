@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -30,13 +30,13 @@ async def update_user_profile(
 ) -> Any:
     """Update current user profile."""
     update_data = user_in.model_dump(exclude_unset=True)
-    
+
     for field, value in update_data.items():
         setattr(current_user, field, value)
-    
+
     await db.commit()
     await db.refresh(current_user)
-    
+
     return current_user
 
 
@@ -52,10 +52,10 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect current password",
         )
-    
+
     current_user.hashed_password = get_password_hash(password_in.new_password)
     await db.commit()
-    
+
     return {"message": "Password changed successfully"}
 
 
@@ -67,5 +67,5 @@ async def delete_user_account(
     """Delete current user account."""
     await db.delete(current_user)
     await db.commit()
-    
+
     return {"message": "Account deleted successfully"}

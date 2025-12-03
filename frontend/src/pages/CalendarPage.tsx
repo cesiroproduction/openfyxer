@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -65,6 +65,19 @@ export default function CalendarPage() {
         end_date: endDate.toISOString(),
       }),
   })
+
+  const syncCalendarMutation = useMutation({
+    mutationFn: () => calendarService.syncCalendar(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      toast.success('Calendar synced')
+    },
+    onError: () => toast.error('Failed to sync calendar'),
+  })
+
+  useEffect(() => {
+    syncCalendarMutation.mutate()
+  }, [])
 
   const createEventMutation = useMutation({
     mutationFn: (data: Partial<CalendarEvent>) => calendarService.createEvent(data),
@@ -159,6 +172,18 @@ export default function CalendarPage() {
           >
             <PlusIcon className="w-5 h-5 mr-2" />
             {t('calendar.newEvent')}
+          </button>
+          <button
+            onClick={() => syncCalendarMutation.mutate()}
+            className="btn btn-secondary flex items-center"
+            disabled={syncCalendarMutation.isPending}
+          >
+            <ArrowPathIcon
+              className={clsx('w-5 h-5 mr-2', {
+                'animate-spin': syncCalendarMutation.isPending,
+              })}
+            />
+            {syncCalendarMutation.isPending ? 'Syncing...' : 'Sync Calendar'}
           </button>
         </div>
       </div>

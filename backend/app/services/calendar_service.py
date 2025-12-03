@@ -1,6 +1,5 @@
 """Calendar service for handling calendar operations."""
 
-import asyncio
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -9,7 +8,6 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.encryption import decrypt_value
 from app.core.exceptions import CalendarProviderError
 from app.models.calendar_event import CalendarEvent
 from app.models.user_settings import UserSettings
@@ -48,14 +46,18 @@ class CalendarService:
             time_min = (now - timedelta(days=30)).isoformat() + "Z"
             time_max = (now + timedelta(days=90)).isoformat() + "Z"
 
-            events_result = service.events().list(
-                calendarId=calendar_id,
-                timeMin=time_min,
-                timeMax=time_max,
-                maxResults=500,
-                singleEvents=True,
-                orderBy="startTime",
-            ).execute()
+            events_result = (
+                service.events()
+                .list(
+                    calendarId=calendar_id,
+                    timeMin=time_min,
+                    timeMax=time_max,
+                    maxResults=500,
+                    singleEvents=True,
+                    orderBy="startTime",
+                )
+                .execute()
+            )
 
             events = events_result.get("items", [])
             synced_events = []
@@ -139,14 +141,15 @@ class CalendarService:
                 start_time = datetime.fromisoformat(start["date"])
                 end_time = datetime.fromisoformat(end["date"])
             else:
-                start_time = datetime.fromisoformat(start.get("dateTime", "").replace("Z", "+00:00"))
-                end_time = datetime.fromisoformat(end.get("dateTime", "").replace("Z", "+00:00"))
+                start_time = datetime.fromisoformat(
+                    start.get("dateTime", "").replace("Z", "+00:00")
+                )
+                end_time = datetime.fromisoformat(
+                    end.get("dateTime", "").replace("Z", "+00:00")
+                )
 
             # Parse attendees
-            attendees = [
-                a.get("email", "")
-                for a in event_data.get("attendees", [])
-            ]
+            attendees = [a.get("email", "") for a in event_data.get("attendees", [])]
 
             # Get meeting link
             meeting_link = None
@@ -225,8 +228,12 @@ class CalendarService:
             end = event_data.get("end", {})
 
             is_all_day = event_data.get("isAllDay", False)
-            start_time = datetime.fromisoformat(start.get("dateTime", "").replace("Z", "+00:00"))
-            end_time = datetime.fromisoformat(end.get("dateTime", "").replace("Z", "+00:00"))
+            start_time = datetime.fromisoformat(
+                start.get("dateTime", "").replace("Z", "+00:00")
+            )
+            end_time = datetime.fromisoformat(
+                end.get("dateTime", "").replace("Z", "+00:00")
+            )
 
             # Parse attendees
             attendees = [
@@ -243,10 +250,16 @@ class CalendarService:
                 existing_event.start_time = start_time
                 existing_event.end_time = end_time
                 existing_event.timezone = start.get("timeZone")
-                existing_event.location = event_data.get("location", {}).get("displayName")
+                existing_event.location = event_data.get("location", {}).get(
+                    "displayName"
+                )
                 existing_event.meeting_link = meeting_link
                 existing_event.attendees = attendees
-                existing_event.organizer = event_data.get("organizer", {}).get("emailAddress", {}).get("address")
+                existing_event.organizer = (
+                    event_data.get("organizer", {})
+                    .get("emailAddress", {})
+                    .get("address")
+                )
                 existing_event.is_all_day = is_all_day
                 existing_event.is_recurring = event_data.get("type") == "occurrence"
                 return existing_event
@@ -263,7 +276,9 @@ class CalendarService:
                     location=event_data.get("location", {}).get("displayName"),
                     meeting_link=meeting_link,
                     attendees=attendees,
-                    organizer=event_data.get("organizer", {}).get("emailAddress", {}).get("address"),
+                    organizer=event_data.get("organizer", {})
+                    .get("emailAddress", {})
+                    .get("address"),
                     is_all_day=is_all_day,
                     is_recurring=event_data.get("type") == "occurrence",
                     status="confirmed",
@@ -323,11 +338,15 @@ class CalendarService:
                     ],
                 }
 
-            result = service.events().insert(
-                calendarId="primary",
-                body=event_body,
-                sendUpdates="all" if event.attendees else "none",
-            ).execute()
+            result = (
+                service.events()
+                .insert(
+                    calendarId="primary",
+                    body=event_body,
+                    sendUpdates="all" if event.attendees else "none",
+                )
+                .execute()
+            )
 
             return result.get("id")
 
@@ -415,12 +434,14 @@ class CalendarService:
 
         # Get existing events
         events_result = await self.db.execute(
-            select(CalendarEvent).where(
+            select(CalendarEvent)
+            .where(
                 CalendarEvent.user_id == user_id,
                 CalendarEvent.status != "cancelled",
                 CalendarEvent.start_time >= date_from,
                 CalendarEvent.end_time <= date_to,
-            ).order_by(CalendarEvent.start_time)
+            )
+            .order_by(CalendarEvent.start_time)
         )
         existing_events = events_result.scalars().all()
 
@@ -444,31 +465,47 @@ class CalendarService:
                 )
 
                 if not respect_working_hours:
-                    day_start = datetime.combine(current_date, datetime.min.time().replace(hour=8))
-                    day_end = datetime.combine(current_date, datetime.min.time().replace(hour=20))
+                    day_start = datetime.combine(
+                        current_date, datetime.min.time().replace(hour=8)
+                    )
+                    day_end = datetime.combine(
+                        current_date, datetime.min.time().replace(hour=20)
+                    )
 
                 current_time = max(day_start, date_from)
-                day_events = [e for e in existing_events if e.start_time.date() == current_date]
+                day_events = [
+                    e for e in existing_events if e.start_time.date() == current_date
+                ]
 
                 for event in day_events:
                     if event.start_time > current_time:
-                        gap_minutes = (event.start_time - current_time).total_seconds() / 60
+                        gap_minutes = (
+                            event.start_time - current_time
+                        ).total_seconds() / 60
                         if gap_minutes >= duration_minutes:
-                            slots.append({
-                                "start_time": current_time,
-                                "end_time": current_time + timedelta(minutes=duration_minutes),
-                                "duration_minutes": duration_minutes,
-                            })
+                            slots.append(
+                                {
+                                    "start_time": current_time,
+                                    "end_time": current_time
+                                    + timedelta(minutes=duration_minutes),
+                                    "duration_minutes": duration_minutes,
+                                }
+                            )
                     current_time = event.end_time + timedelta(minutes=buffer_minutes)
 
                 if current_time < min(day_end, date_to):
-                    remaining = (min(day_end, date_to) - current_time).total_seconds() / 60
+                    remaining = (
+                        min(day_end, date_to) - current_time
+                    ).total_seconds() / 60
                     if remaining >= duration_minutes:
-                        slots.append({
-                            "start_time": current_time,
-                            "end_time": current_time + timedelta(minutes=duration_minutes),
-                            "duration_minutes": duration_minutes,
-                        })
+                        slots.append(
+                            {
+                                "start_time": current_time,
+                                "end_time": current_time
+                                + timedelta(minutes=duration_minutes),
+                                "duration_minutes": duration_minutes,
+                            }
+                        )
 
             current_date += timedelta(days=1)
 
@@ -510,12 +547,15 @@ class CalendarService:
         end_date = now + timedelta(days=days)
 
         result = await self.db.execute(
-            select(CalendarEvent).where(
+            select(CalendarEvent)
+            .where(
                 CalendarEvent.user_id == user_id,
                 CalendarEvent.start_time >= now,
                 CalendarEvent.start_time <= end_date,
                 CalendarEvent.status != "cancelled",
-            ).order_by(CalendarEvent.start_time).limit(limit)
+            )
+            .order_by(CalendarEvent.start_time)
+            .limit(limit)
         )
 
         return result.scalars().all()
@@ -525,16 +565,20 @@ class CalendarService:
         user_id: UUID,
     ) -> List[CalendarEvent]:
         """Get today's events."""
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.utcnow().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         today_end = today_start + timedelta(days=1)
 
         result = await self.db.execute(
-            select(CalendarEvent).where(
+            select(CalendarEvent)
+            .where(
                 CalendarEvent.user_id == user_id,
                 CalendarEvent.start_time >= today_start,
                 CalendarEvent.start_time < today_end,
                 CalendarEvent.status != "cancelled",
-            ).order_by(CalendarEvent.start_time)
+            )
+            .order_by(CalendarEvent.start_time)
         )
 
         return result.scalars().all()
