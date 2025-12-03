@@ -58,11 +58,7 @@ def send_notification(user_id: str, notification_type: str, data: dict):
                     else None
                 ),
                 sms_provider=settings.sms_provider,
-                sms_api_key=(
-                    decrypt_value(settings.sms_api_key)
-                    if settings.sms_api_key
-                    else None
-                ),
+                sms_api_key=(decrypt_value(settings.sms_api_key) if settings.sms_api_key else None),
                 sms_phone_number=settings.sms_phone_number,
                 notification_email=settings.notification_email,
             )
@@ -386,10 +382,7 @@ def send_follow_up_reminders(user_id: str):
                     "follow_up_reminder",
                     {
                         "count": len(emails),
-                        "emails": [
-                            {"subject": e.subject, "sender": e.sender}
-                            for e in emails[:5]
-                        ],
+                        "emails": [{"subject": e.subject, "sender": e.sender} for e in emails[:5]],
                     },
                 )
 

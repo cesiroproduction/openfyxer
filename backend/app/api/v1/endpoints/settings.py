@@ -66,9 +66,7 @@ async def get_settings(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Get current user settings."""
-    result = await db.execute(
-        select(UserSettings).where(UserSettings.user_id == current_user.id)
-    )
+    result = await db.execute(select(UserSettings).where(UserSettings.user_id == current_user.id))
     settings = result.scalar_one_or_none()
 
     if not settings:
@@ -88,9 +86,7 @@ async def update_settings(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Update user settings."""
-    result = await db.execute(
-        select(UserSettings).where(UserSettings.user_id == current_user.id)
-    )
+    result = await db.execute(select(UserSettings).where(UserSettings.user_id == current_user.id))
     settings = result.scalar_one_or_none()
 
     if not settings:
@@ -127,9 +123,7 @@ async def test_notification(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Test notification channel."""
-    result = await db.execute(
-        select(UserSettings).where(UserSettings.user_id == current_user.id)
-    )
+    result = await db.execute(select(UserSettings).where(UserSettings.user_id == current_user.id))
     settings = result.scalar_one_or_none()
 
     if not settings:
@@ -204,9 +198,7 @@ async def get_llm_providers(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Get available LLM providers and their status."""
-    result = await db.execute(
-        select(UserSettings).where(UserSettings.user_id == current_user.id)
-    )
+    result = await db.execute(select(UserSettings).where(UserSettings.user_id == current_user.id))
     settings = result.scalar_one_or_none()
 
     providers = [
@@ -303,9 +295,7 @@ async def delete_api_key(
             detail=f"Invalid provider. Valid options: {valid_providers}",
         )
 
-    result = await db.execute(
-        select(UserSettings).where(UserSettings.user_id == current_user.id)
-    )
+    result = await db.execute(select(UserSettings).where(UserSettings.user_id == current_user.id))
     settings = result.scalar_one_or_none()
 
     if not settings:

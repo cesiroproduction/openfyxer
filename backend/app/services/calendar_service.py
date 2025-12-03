@@ -144,9 +144,7 @@ class CalendarService:
                 start_time = datetime.fromisoformat(
                     start.get("dateTime", "").replace("Z", "+00:00")
                 )
-                end_time = datetime.fromisoformat(
-                    end.get("dateTime", "").replace("Z", "+00:00")
-                )
+                end_time = datetime.fromisoformat(end.get("dateTime", "").replace("Z", "+00:00"))
 
             # Parse attendees
             attendees = [a.get("email", "") for a in event_data.get("attendees", [])]
@@ -256,9 +254,7 @@ class CalendarService:
                 existing_event.meeting_link = meeting_link
                 existing_event.attendees = attendees
                 existing_event.organizer = (
-                    event_data.get("organizer", {})
-                    .get("emailAddress", {})
-                    .get("address")
+                    event_data.get("organizer", {}).get("emailAddress", {}).get("address")
                 )
                 existing_event.is_all_day = is_all_day
                 existing_event.is_recurring = event_data.get("type") == "occurrence"
@@ -388,8 +384,7 @@ class CalendarService:
 
             if event.attendees:
                 event_body["attendees"] = [
-                    {"emailAddress": {"address": a}, "type": "required"}
-                    for a in event.attendees
+                    {"emailAddress": {"address": a}, "type": "required"} for a in event.attendees
                 ]
 
             response = requests.post(
@@ -486,8 +481,7 @@ class CalendarService:
                             slots.append(
                                 {
                                     "start_time": current_time,
-                                    "end_time": current_time
-                                    + timedelta(minutes=duration_minutes),
+                                    "end_time": current_time + timedelta(minutes=duration_minutes),
                                     "duration_minutes": duration_minutes,
                                 }
                             )
@@ -501,8 +495,7 @@ class CalendarService:
                         slots.append(
                             {
                                 "start_time": current_time,
-                                "end_time": current_time
-                                + timedelta(minutes=duration_minutes),
+                                "end_time": current_time + timedelta(minutes=duration_minutes),
                                 "duration_minutes": duration_minutes,
                             }
                         )

@@ -71,9 +71,7 @@ class EmailService:
 
             token = decrypt_value(account.oauth_token)
             refresh_token = (
-                decrypt_value(account.oauth_refresh_token)
-                if account.oauth_refresh_token
-                else None
+                decrypt_value(account.oauth_refresh_token) if account.oauth_refresh_token else None
             )
 
             creds = Credentials(
@@ -156,7 +154,9 @@ class EmailService:
             }
 
             # Get messages from inbox
-            url = f"https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$top={max_emails}"
+            url = (
+                f"https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$top={max_emails}"
+            )
             response = requests.get(url, headers=headers)
 
             if response.status_code != 200:
@@ -331,8 +331,7 @@ class EmailService:
         """Parse Gmail message into Email model."""
         try:
             headers = {
-                h["name"]: h["value"]
-                for h in msg_data.get("payload", {}).get("headers", [])
+                h["name"]: h["value"] for h in msg_data.get("payload", {}).get("headers", [])
             }
 
             # Check if email already exists
@@ -382,9 +381,7 @@ class EmailService:
                 body_html=body_html,
                 snippet=msg_data.get("snippet"),
                 labels=msg_data.get("labelIds"),
-                has_attachments=any(
-                    part.get("filename") for part in payload.get("parts", [])
-                ),
+                has_attachments=any(part.get("filename") for part in payload.get("parts", [])),
                 is_read="UNREAD" not in msg_data.get("labelIds", []),
                 is_starred="STARRED" in msg_data.get("labelIds", []),
                 received_at=datetime.fromtimestamp(
@@ -545,9 +542,7 @@ class EmailService:
 
             token = decrypt_value(account.oauth_token)
             refresh_token = (
-                decrypt_value(account.oauth_refresh_token)
-                if account.oauth_refresh_token
-                else None
+                decrypt_value(account.oauth_refresh_token) if account.oauth_refresh_token else None
             )
 
             creds = Credentials(
@@ -613,9 +608,7 @@ class EmailService:
                         "contentType": "HTML" if html_body else "Text",
                         "content": html_body or body,
                     },
-                    "toRecipients": [
-                        {"emailAddress": {"address": addr}} for addr in to
-                    ],
+                    "toRecipients": [{"emailAddress": {"address": addr}} for addr in to],
                 },
                 "saveToSentItems": True,
             }

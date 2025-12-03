@@ -41,9 +41,7 @@ async def list_meetings(
 ) -> Any:
     """List all meetings."""
     query = select(Meeting).where(Meeting.user_id == current_user.id)
-    count_query = select(func.count(Meeting.id)).where(
-        Meeting.user_id == current_user.id
-    )
+    count_query = select(func.count(Meeting.id)).where(Meeting.user_id == current_user.id)
 
     if status_filter:
         query = query.where(Meeting.status == status_filter)
@@ -410,9 +408,7 @@ async def summarize_meeting(
 
     # TODO: Call LLM to generate summary
     # For now, create placeholder
-    meeting.summary = (
-        f"Summary of meeting: {meeting.title}\n\nThis is a placeholder summary."
-    )
+    meeting.summary = f"Summary of meeting: {meeting.title}\n\nThis is a placeholder summary."
 
     if request and request.include_action_items:
         meeting.action_items = [

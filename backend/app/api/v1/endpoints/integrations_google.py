@@ -142,9 +142,7 @@ async def google_callback(
         # Encrypt tokens
         encrypted_token = encrypt_value(credentials.token)
         encrypted_refresh = (
-            encrypt_value(credentials.refresh_token)
-            if credentials.refresh_token
-            else None
+            encrypt_value(credentials.refresh_token) if credentials.refresh_token else None
         )
 
         if existing_account:
@@ -209,9 +207,7 @@ async def google_status(
                 "email": account.email_address,
                 "display_name": account.display_name,
                 "is_active": account.is_active,
-                "last_sync": (
-                    account.last_sync.isoformat() if account.last_sync else None
-                ),
+                "last_sync": (account.last_sync.isoformat() if account.last_sync else None),
             }
         )
 
@@ -264,9 +260,7 @@ def get_google_credentials(account: EmailAccount) -> Optional[Credentials]:
 
     token = decrypt_value(account.oauth_token)
     refresh_token = (
-        decrypt_value(account.oauth_refresh_token)
-        if account.oauth_refresh_token
-        else None
+        decrypt_value(account.oauth_refresh_token) if account.oauth_refresh_token else None
     )
 
     if not token:

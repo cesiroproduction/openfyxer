@@ -71,9 +71,7 @@ class RAGService:
                     subject=email_obj.subject,
                     sender=email_obj.sender,
                     received_at=(
-                        email_obj.received_at.isoformat()
-                        if email_obj.received_at
-                        else None
+                        email_obj.received_at.isoformat() if email_obj.received_at else None
                     ),
                     category=email_obj.category,
                     embedding=embeddings[0] if embeddings else None,
@@ -238,9 +236,7 @@ class RAGService:
                     title=meeting.title,
                     summary=meeting.summary,
                     meeting_date=(
-                        meeting.meeting_date.isoformat()
-                        if meeting.meeting_date
-                        else None
+                        meeting.meeting_date.isoformat() if meeting.meeting_date else None
                     ),
                     embedding=embeddings[0] if embeddings else None,
                     user_id=str(user_id),
@@ -445,9 +441,7 @@ class RAGService:
                         "title": email_obj.subject or "No Subject",
                         "score": 0.7,
                         "date": (
-                            email_obj.received_at.isoformat()
-                            if email_obj.received_at
-                            else None
+                            email_obj.received_at.isoformat() if email_obj.received_at else None
                         ),
                     }
                 )
@@ -492,11 +486,7 @@ class RAGService:
                     "id": str(meeting.id),
                     "title": meeting.title,
                     "score": 0.6,
-                    "date": (
-                        meeting.meeting_date.isoformat()
-                        if meeting.meeting_date
-                        else None
-                    ),
+                    "date": (meeting.meeting_date.isoformat() if meeting.meeting_date else None),
                 }
             )
 

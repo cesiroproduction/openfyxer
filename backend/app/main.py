@@ -52,9 +52,7 @@ app.add_middleware(
 
 
 @app.exception_handler(OpenFyxerException)
-async def openfyxer_exception_handler(
-    request: Request, exc: OpenFyxerException
-) -> JSONResponse:
+async def openfyxer_exception_handler(request: Request, exc: OpenFyxerException) -> JSONResponse:
     """Handle OpenFyxer custom exceptions."""
     return JSONResponse(
         status_code=400,

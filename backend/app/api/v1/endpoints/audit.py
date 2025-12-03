@@ -32,9 +32,7 @@ async def list_audit_logs(
 ) -> Any:
     """List audit logs for current user."""
     query = select(AuditLog).where(AuditLog.user_id == current_user.id)
-    count_query = select(func.count(AuditLog.id)).where(
-        AuditLog.user_id == current_user.id
-    )
+    count_query = select(func.count(AuditLog.id)).where(AuditLog.user_id == current_user.id)
 
     if action:
         query = query.where(AuditLog.action == action)

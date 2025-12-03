@@ -135,9 +135,7 @@ async def send_chat_message(
                 temperature=0.7,
             )
 
-        logger.info(
-            f"LLM response generated successfully using {llm_provider}/{llm_model}"
-        )
+        logger.info(f"LLM response generated successfully using {llm_provider}/{llm_model}")
 
     except LLMError as e:
         # Known LLM/HTTP issues: log, then fall back

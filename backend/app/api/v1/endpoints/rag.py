@@ -75,11 +75,7 @@ async def query_knowledge_base(
                         type="email",
                         id=email.id,
                         title=email.subject or "No Subject",
-                        snippet=(
-                            email.snippet or email.body_text[:200]
-                            if email.body_text
-                            else ""
-                        ),
+                        snippet=(email.snippet or email.body_text[:200] if email.body_text else ""),
                         relevance_score=0.8,
                         date=email.received_at,
                     )
@@ -111,9 +107,7 @@ async def query_knowledge_base(
                     id=doc.id,
                     title=doc.filename,
                     snippet=(
-                        doc.content_summary or doc.content_text[:200]
-                        if doc.content_text
-                        else ""
+                        doc.content_summary or doc.content_text[:200] if doc.content_text else ""
                     ),
                     relevance_score=0.75,
                     date=doc.created_at,
@@ -136,9 +130,7 @@ async def query_knowledge_base(
                 Meeting.meeting_date >= query_in.date_from
             )
         if query_in.date_to:
-            meeting_query = meeting_query.where(
-                Meeting.meeting_date <= query_in.date_to
-            )
+            meeting_query = meeting_query.where(Meeting.meeting_date <= query_in.date_to)
 
         meetings_result = await db.execute(meeting_query)
         meetings = meetings_result.scalars().all()
@@ -150,9 +142,7 @@ async def query_knowledge_base(
                     id=meeting.id,
                     title=meeting.title,
                     snippet=(
-                        meeting.summary or meeting.transcript[:200]
-                        if meeting.transcript
-                        else ""
+                        meeting.summary or meeting.transcript[:200] if meeting.transcript else ""
                     ),
                     relevance_score=0.7,
                     date=meeting.meeting_date,
@@ -196,9 +186,7 @@ async def list_documents(
 ) -> Any:
     """List all documents in knowledge base."""
     query = select(Document).where(Document.user_id == current_user.id)
-    count_query = select(func.count(Document.id)).where(
-        Document.user_id == current_user.id
-    )
+    count_query = select(func.count(Document.id)).where(Document.user_id == current_user.id)
 
     if source:
         query = query.where(Document.source == source)
@@ -211,12 +199,10 @@ async def list_documents(
     if search:
         search_filter = f"%{search}%"
         query = query.where(
-            (Document.filename.ilike(search_filter))
-            | (Document.content_text.ilike(search_filter))
+            (Document.filename.ilike(search_filter)) | (Document.content_text.ilike(search_filter))
         )
         count_query = count_query.where(
-            (Document.filename.ilike(search_filter))
-            | (Document.content_text.ilike(search_filter))
+            (Document.filename.ilike(search_filter)) | (Document.content_text.ilike(search_filter))
         )
 
     # Get total count

@@ -336,9 +336,7 @@ async def disable_2fa(
             detail="2FA is not enabled",
         )
 
-    if not current_user.totp_secret or not verify_totp(
-        current_user.totp_secret, verify_in.code
-    ):
+    if not current_user.totp_secret or not verify_totp(current_user.totp_secret, verify_in.code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid verification code",

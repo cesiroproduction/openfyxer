@@ -96,9 +96,7 @@ class EmailListResponse(BaseModel):
 class EmailCategoryUpdate(BaseModel):
     """Schema for updating email category."""
 
-    category: str = Field(
-        ..., pattern="^(urgent|to_respond|fyi|newsletter|spam|archived)$"
-    )
+    category: str = Field(..., pattern="^(urgent|to_respond|fyi|newsletter|spam|archived)$")
 
 
 class EmailMarkRead(BaseModel):

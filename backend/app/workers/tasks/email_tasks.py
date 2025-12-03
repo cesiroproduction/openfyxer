@@ -350,9 +350,7 @@ def send_draft(self, draft_id: str, user_id: str):
                     return {"status": "skipped", "message": "Draft already sent"}
 
                 # Get original email
-                email_result = await db.execute(
-                    select(Email).where(Email.id == draft.email_id)
-                )
+                email_result = await db.execute(select(Email).where(Email.id == draft.email_id))
                 email = email_result.scalar_one_or_none()
 
                 if not email:
@@ -404,9 +402,7 @@ def cleanup_old_audit_logs():
         async with get_async_session() as db:
             cutoff = datetime.utcnow() - timedelta(days=90)
 
-            result = await db.execute(
-                delete(AuditLog).where(AuditLog.created_at < cutoff)
-            )
+            result = await db.execute(delete(AuditLog).where(AuditLog.created_at < cutoff))
             await db.commit()
 
             return {"deleted_count": result.rowcount}
