@@ -73,6 +73,45 @@ class CalendarService:
         except Exception as e:
             raise CalendarProviderError(f"Google Calendar sync failed: {str(e)}")
 
+    async def push_local_google_events(
+        self,
+        user_id: UUID,
+        oauth_token: str,
+        refresh_token: Optional[str] = None,
+        calendar_id: str = "primary",
+    ) -> int:
+        """Push locally created Google events that lack an external id."""
+
+        pending_result = await self.db.execute(
+            select(CalendarEvent).where(
+                CalendarEvent.user_id == user_id,
+                CalendarEvent.provider == "google",
+                CalendarEvent.external_id.is_(None),
+            )
+        )
+        pending_events = pending_result.scalars().all()
+
+        if not pending_events:
+            return 0
+
+        created = 0
+        for event in pending_events:
+            external_id = await self.create_google_event(
+                oauth_token=oauth_token,
+                refresh_token=refresh_token,
+                event=event,
+            )
+
+            if external_id:
+                event.external_id = external_id
+                event.calendar_id = calendar_id
+                created += 1
+
+        if created:
+            await self.db.commit()
+
+        return created
+
     async def sync_outlook_calendar(
         self,
         user_id: UUID,

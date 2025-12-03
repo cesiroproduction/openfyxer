@@ -96,9 +96,29 @@ async def create_calendar_event(
             detail="End time must be after start time",
         )
 
+    provider = event_in.provider
+
+    # Auto-route local events to a connected provider when possible
+    if provider == "local":
+        connected_account = await db.execute(
+            select(EmailAccount)
+            .where(
+                EmailAccount.user_id == current_user.id,
+                EmailAccount.is_active == True,  # noqa: E712
+                EmailAccount.sync_enabled == True,  # noqa: E712
+            )
+            .order_by(EmailAccount.created_at)
+        )
+        account = connected_account.scalar_one_or_none()
+        if account:
+            if account.provider == "gmail":
+                provider = "google"
+            elif account.provider == "outlook":
+                provider = "outlook"
+
     event = CalendarEvent(
         user_id=current_user.id,
-        provider=event_in.provider,
+        provider=provider,
         title=event_in.title,
         description=event_in.description,
         start_time=event_in.start_time,
@@ -116,7 +136,37 @@ async def create_calendar_event(
     await db.commit()
     await db.refresh(event)
 
-    # TODO: Sync to external calendar provider
+    # Push newly created events to external providers when possible
+    if provider == "google":
+        account_query = await db.execute(
+            select(EmailAccount)
+            .where(
+                EmailAccount.user_id == current_user.id,
+                EmailAccount.provider == "gmail",
+                EmailAccount.is_active == True,  # noqa: E712
+                EmailAccount.sync_enabled == True,  # noqa: E712
+            )
+            .order_by(EmailAccount.created_at)
+        )
+        account = account_query.scalar_one_or_none()
+
+        if account and account.oauth_token:
+            calendar_service = CalendarService(db)
+            external_id = await calendar_service.create_google_event(
+                oauth_token=decrypt_value(account.oauth_token),
+                refresh_token=(
+                    decrypt_value(account.oauth_refresh_token)
+                    if account.oauth_refresh_token
+                    else None
+                ),
+                event=event,
+            )
+
+            if external_id:
+                event.external_id = external_id
+                event.calendar_id = "primary"
+                await db.commit()
+                await db.refresh(event)
 
     return event
 
@@ -481,6 +531,16 @@ async def sync_calendars(
     try:
         for account in accounts:
             if account.provider == "gmail" and account.oauth_token:
+                await calendar_service.push_local_google_events(
+                    user_id=current_user.id,
+                    oauth_token=decrypt_value(account.oauth_token),
+                    refresh_token=(
+                        decrypt_value(account.oauth_refresh_token)
+                        if account.oauth_refresh_token
+                        else None
+                    ),
+                    calendar_id="primary",
+                )
                 events = await calendar_service.sync_google_calendar(
                     user_id=current_user.id,
                     oauth_token=decrypt_value(account.oauth_token),
