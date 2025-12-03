@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     settings,
     chat,
     audit,
+    integrations_google,
 )
 
 api_router = APIRouter()
@@ -85,4 +86,11 @@ api_router.include_router(
     audit.router,
     prefix="/audit",
     tags=["Audit"],
+)
+
+# Google OAuth integration endpoints
+api_router.include_router(
+    integrations_google.router,
+    prefix="/integrations/google",
+    tags=["Google Integration"],
 )

@@ -37,8 +37,8 @@ class CalendarService:
                 token=oauth_token,
                 refresh_token=refresh_token,
                 token_uri="https://oauth2.googleapis.com/token",
-                client_id=settings.GOOGLE_CALENDAR_CLIENT_ID,
-                client_secret=settings.GOOGLE_CALENDAR_CLIENT_SECRET,
+                client_id=settings.google_client_id,
+                client_secret=settings.google_client_secret,
             )
 
             service = build("calendar", "v3", credentials=creds)
@@ -290,8 +290,8 @@ class CalendarService:
                 token=oauth_token,
                 refresh_token=refresh_token,
                 token_uri="https://oauth2.googleapis.com/token",
-                client_id=settings.GOOGLE_CALENDAR_CLIENT_ID,
-                client_secret=settings.GOOGLE_CALENDAR_CLIENT_SECRET,
+                client_id=settings.google_client_id,
+                client_secret=settings.google_client_secret,
             )
 
             service = build("calendar", "v3", credentials=creds)

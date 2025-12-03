@@ -58,10 +58,25 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: Optional[str] = None
     COHERE_API_KEY: Optional[str] = None
 
-    # Gmail OAuth2
+    # Google OAuth2 (unified for Gmail + Calendar)
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/google/callback"
+    
+    # Legacy Gmail OAuth2 (for backward compatibility)
     GMAIL_CLIENT_ID: Optional[str] = None
     GMAIL_CLIENT_SECRET: Optional[str] = None
     GMAIL_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/gmail/callback"
+    
+    @property
+    def google_client_id(self) -> Optional[str]:
+        """Get Google client ID (prefer unified, fallback to Gmail-specific)."""
+        return self.GOOGLE_CLIENT_ID or self.GMAIL_CLIENT_ID
+    
+    @property
+    def google_client_secret(self) -> Optional[str]:
+        """Get Google client secret (prefer unified, fallback to Gmail-specific)."""
+        return self.GOOGLE_CLIENT_SECRET or self.GMAIL_CLIENT_SECRET
 
     # Microsoft OAuth2
     MICROSOFT_CLIENT_ID: Optional[str] = None
