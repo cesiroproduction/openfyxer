@@ -77,7 +77,7 @@ export default function CalendarPage() {
 
   useEffect(() => {
     syncCalendarMutation.mutate()
-  }, [])
+  }, [syncCalendarMutation])
 
   const createEventMutation = useMutation({
     mutationFn: (data: Partial<CalendarEvent>) => calendarService.createEvent(data),
