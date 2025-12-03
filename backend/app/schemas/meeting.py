@@ -71,9 +71,7 @@ class TranscriptionRequest(BaseModel):
     """Schema for transcription request."""
 
     language: Optional[str] = Field(default=None, pattern="^(en|ro|auto)$")
-    model: Optional[str] = Field(
-        default=None, pattern="^(tiny|base|small|medium|large)$"
-    )
+    model: Optional[str] = Field(default=None, pattern="^(tiny|base|small|medium|large)$")
 
 
 class SummarizationRequest(BaseModel):

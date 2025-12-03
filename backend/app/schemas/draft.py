@@ -12,9 +12,7 @@ class DraftCreate(BaseModel):
 
     email_id: UUID
     content: Optional[str] = None  # If None, AI will generate
-    tone: Optional[str] = Field(
-        default=None, pattern="^(formal|friendly|professional|concise)$"
-    )
+    tone: Optional[str] = Field(default=None, pattern="^(formal|friendly|professional|concise)$")
     language: Optional[str] = Field(default=None, pattern="^(en|ro)$")
 
 
@@ -70,8 +68,6 @@ class DraftSend(BaseModel):
 class DraftRegenerate(BaseModel):
     """Schema for regenerating a draft."""
 
-    tone: Optional[str] = Field(
-        default=None, pattern="^(formal|friendly|professional|concise)$"
-    )
+    tone: Optional[str] = Field(default=None, pattern="^(formal|friendly|professional|concise)$")
     language: Optional[str] = Field(default=None, pattern="^(en|ro)$")
     instructions: Optional[str] = Field(default=None, max_length=500)

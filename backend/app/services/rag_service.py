@@ -1,6 +1,5 @@
 """RAG service for knowledge base operations."""
 
-import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -9,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import RAGError
 from app.models.document import Document
 from app.models.email import Email
 from app.models.meeting import Meeting
@@ -72,7 +70,9 @@ class RAGService:
                     email_id=str(email_obj.id),
                     subject=email_obj.subject,
                     sender=email_obj.sender,
-                    received_at=email_obj.received_at.isoformat() if email_obj.received_at else None,
+                    received_at=(
+                        email_obj.received_at.isoformat() if email_obj.received_at else None
+                    ),
                     category=email_obj.category,
                     embedding=embeddings[0] if embeddings else None,
                     user_id=str(user_id),
@@ -233,7 +233,9 @@ class RAGService:
                     meeting_id=str(meeting.id),
                     title=meeting.title,
                     summary=meeting.summary,
-                    meeting_date=meeting.meeting_date.isoformat() if meeting.meeting_date else None,
+                    meeting_date=(
+                        meeting.meeting_date.isoformat() if meeting.meeting_date else None
+                    ),
                     embedding=embeddings[0] if embeddings else None,
                     user_id=str(user_id),
                 )
@@ -314,13 +316,15 @@ class RAGService:
                     )
 
                     async for record in email_results:
-                        results.append({
-                            "type": record["type"],
-                            "id": record["id"],
-                            "title": record["title"],
-                            "score": record["score"],
-                            "date": record["date"],
-                        })
+                        results.append(
+                            {
+                                "type": record["type"],
+                                "id": record["id"],
+                                "title": record["title"],
+                                "score": record["score"],
+                                "date": record["date"],
+                            }
+                        )
 
                 # Search documents
                 if include_documents:
@@ -341,13 +345,15 @@ class RAGService:
                     )
 
                     async for record in doc_results:
-                        results.append({
-                            "type": record["type"],
-                            "id": record["id"],
-                            "title": record["title"],
-                            "score": record["score"],
-                            "date": record["date"],
-                        })
+                        results.append(
+                            {
+                                "type": record["type"],
+                                "id": record["id"],
+                                "title": record["title"],
+                                "score": record["score"],
+                                "date": record["date"],
+                            }
+                        )
 
                 # Search meetings
                 if include_meetings:
@@ -368,13 +374,15 @@ class RAGService:
                     )
 
                     async for record in meeting_results:
-                        results.append({
-                            "type": record["type"],
-                            "id": record["id"],
-                            "title": record["title"],
-                            "score": record["score"],
-                            "date": record["date"],
-                        })
+                        results.append(
+                            {
+                                "type": record["type"],
+                                "id": record["id"],
+                                "title": record["title"],
+                                "score": record["score"],
+                                "date": record["date"],
+                            }
+                        )
 
             # Sort by score and limit
             results.sort(key=lambda x: x["score"], reverse=True)
@@ -423,13 +431,17 @@ class RAGService:
             )
 
             for email_obj in emails_result.scalars():
-                results.append({
-                    "type": "email",
-                    "id": str(email_obj.id),
-                    "title": email_obj.subject or "No Subject",
-                    "score": 0.7,
-                    "date": email_obj.received_at.isoformat() if email_obj.received_at else None,
-                })
+                results.append(
+                    {
+                        "type": "email",
+                        "id": str(email_obj.id),
+                        "title": email_obj.subject or "No Subject",
+                        "score": 0.7,
+                        "date": (
+                            email_obj.received_at.isoformat() if email_obj.received_at else None
+                        ),
+                    }
+                )
 
         # Search documents
         docs_result = await self.db.execute(
@@ -442,13 +454,15 @@ class RAGService:
         )
 
         for doc in docs_result.scalars():
-            results.append({
-                "type": "document",
-                "id": str(doc.id),
-                "title": doc.filename,
-                "score": 0.6,
-                "date": doc.created_at.isoformat(),
-            })
+            results.append(
+                {
+                    "type": "document",
+                    "id": str(doc.id),
+                    "title": doc.filename,
+                    "score": 0.6,
+                    "date": doc.created_at.isoformat(),
+                }
+            )
 
         # Search meetings
         meetings_result = await self.db.execute(
@@ -461,13 +475,15 @@ class RAGService:
         )
 
         for meeting in meetings_result.scalars():
-            results.append({
-                "type": "meeting",
-                "id": str(meeting.id),
-                "title": meeting.title,
-                "score": 0.6,
-                "date": meeting.meeting_date.isoformat() if meeting.meeting_date else None,
-            })
+            results.append(
+                {
+                    "type": "meeting",
+                    "id": str(meeting.id),
+                    "title": meeting.title,
+                    "score": 0.6,
+                    "date": (meeting.meeting_date.isoformat() if meeting.meeting_date else None),
+                }
+            )
 
         return {
             "answer": f"Found {len(results)} results for '{query_text}'",
@@ -539,6 +555,7 @@ Topics:"""
     def _extract_email(self, email_string: str) -> str:
         """Extract email address from string like 'Name <email@example.com>'."""
         import re
+
         match = re.search(r"<([^>]+)>", email_string)
         if match:
             return match.group(1).lower()
@@ -547,6 +564,7 @@ Topics:"""
     def _extract_name(self, email_string: str) -> str:
         """Extract name from string like 'Name <email@example.com>'."""
         import re
+
         match = re.search(r"^([^<]+)", email_string)
         if match:
             name = match.group(1).strip()
@@ -589,12 +607,14 @@ Topics:"""
                 )
 
                 async for record in node_results:
-                    nodes.append({
-                        "id": record["id"],
-                        "type": record["type"],
-                        "name": record["name"],
-                        "properties": record["properties"],
-                    })
+                    nodes.append(
+                        {
+                            "id": record["id"],
+                            "type": record["type"],
+                            "name": record["name"],
+                            "properties": record["properties"],
+                        }
+                    )
 
                 # Get relationships
                 rel_query = """
@@ -612,12 +632,14 @@ Topics:"""
                 )
 
                 async for record in rel_results:
-                    relationships.append({
-                        "source_id": record["source"],
-                        "target_id": record["target"],
-                        "type": record["type"],
-                        "properties": record["properties"] or {},
-                    })
+                    relationships.append(
+                        {
+                            "source_id": record["source"],
+                            "target_id": record["target"],
+                            "type": record["type"],
+                            "properties": record["properties"] or {},
+                        }
+                    )
 
             return {
                 "nodes": nodes,

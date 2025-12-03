@@ -20,6 +20,10 @@ export interface ChatSuggestion {
   category: string
 }
 
+interface ChatHistoryResponse {
+  messages?: ChatMessage[]
+}
+
 export const chatService = {
   sendMessage: async (message: string): Promise<ChatMessage> => {
     const response = await api.post('/chat', { message })
@@ -27,13 +31,13 @@ export const chatService = {
   },
 
   getHistory: async (): Promise<ChatMessage[]> => {
-    const response = await api.get('/chat/history')
+    const response = await api.get<ChatHistoryResponse>('/chat/history')
     // API returns {messages: [...], total: ...}, extract messages array
-    const messages = response.data.messages || []
+    const messages: ChatMessage[] = response.data.messages || []
     // Map created_at to timestamp for frontend compatibility
-    return messages.map((msg: any) => ({
+    return messages.map((msg) => ({
       ...msg,
-      timestamp: msg.created_at || msg.timestamp
+      timestamp: msg.created_at || msg.timestamp,
     }))
   },
 

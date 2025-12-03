@@ -1,63 +1,48 @@
 """Pydantic schemas for OpenFyxer."""
 
+from app.schemas.audit import AuditLogListResponse, AuditLogResponse
+from app.schemas.calendar import (
+    AvailableSlot,
+    CalendarEventCreate,
+    CalendarEventListResponse,
+    CalendarEventResponse,
+    CalendarEventUpdate,
+    ScheduleMeetingRequest,
+)
+from app.schemas.chat import ChatHistory, ChatMessage, ChatResponse
+from app.schemas.draft import DraftCreate, DraftListResponse, DraftResponse, DraftUpdate
+from app.schemas.email import (
+    EmailAccountCreate,
+    EmailAccountResponse,
+    EmailAccountUpdate,
+    EmailCategoryUpdate,
+    EmailListResponse,
+    EmailResponse,
+)
+from app.schemas.meeting import (
+    MeetingCreate,
+    MeetingListResponse,
+    MeetingResponse,
+    MeetingUpdate,
+    TranscriptionRequest,
+)
+from app.schemas.rag import (
+    DocumentListResponse,
+    DocumentResponse,
+    DocumentUpload,
+    RAGQuery,
+    RAGResponse,
+)
+from app.schemas.settings import UserSettingsResponse, UserSettingsUpdate
 from app.schemas.user import (
-    UserCreate,
-    UserUpdate,
-    UserResponse,
-    UserLogin,
     Token,
     TokenPayload,
     TwoFactorSetup,
     TwoFactorVerify,
-)
-from app.schemas.email import (
-    EmailAccountCreate,
-    EmailAccountUpdate,
-    EmailAccountResponse,
-    EmailResponse,
-    EmailListResponse,
-    EmailCategoryUpdate,
-)
-from app.schemas.draft import (
-    DraftCreate,
-    DraftUpdate,
-    DraftResponse,
-    DraftListResponse,
-)
-from app.schemas.calendar import (
-    CalendarEventCreate,
-    CalendarEventUpdate,
-    CalendarEventResponse,
-    CalendarEventListResponse,
-    AvailableSlot,
-    ScheduleMeetingRequest,
-)
-from app.schemas.rag import (
-    RAGQuery,
-    RAGResponse,
-    DocumentUpload,
-    DocumentResponse,
-    DocumentListResponse,
-)
-from app.schemas.meeting import (
-    MeetingCreate,
-    MeetingUpdate,
-    MeetingResponse,
-    MeetingListResponse,
-    TranscriptionRequest,
-)
-from app.schemas.settings import (
-    UserSettingsUpdate,
-    UserSettingsResponse,
-)
-from app.schemas.chat import (
-    ChatMessage,
-    ChatResponse,
-    ChatHistory,
-)
-from app.schemas.audit import (
-    AuditLogResponse,
-    AuditLogListResponse,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+    UserUpdate,
 )
 
 __all__ = [

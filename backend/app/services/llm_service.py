@@ -5,7 +5,6 @@ import json
 from typing import Any, Dict, List, Optional
 
 from app.core.config import settings
-from app.core.encryption import decrypt_value
 from app.core.exceptions import LLMError
 
 

@@ -10,6 +10,7 @@ from app.workers.celery_app import celery_app
 def get_async_session():
     """Get async database session for tasks."""
     from app.db.session import async_session_maker
+
     return async_session_maker()
 
 
@@ -26,10 +27,12 @@ def run_async(coro):
 @celery_app.task
 def send_notification(user_id: str, notification_type: str, data: dict):
     """Send notification to user based on their preferences."""
+
     async def _send():
         from sqlalchemy import select
-        from app.models.user_settings import UserSettings
+
         from app.core.encryption import decrypt_value
+        from app.models.user_settings import UserSettings
         from app.services.notification_service import NotificationService
 
         async with get_async_session() as db:
@@ -49,9 +52,13 @@ def send_notification(user_id: str, notification_type: str, data: dict):
 
             # Initialize notification service
             notification_service = NotificationService(
-                slack_webhook_url=decrypt_value(settings.slack_webhook_url) if settings.slack_webhook_url else None,
+                slack_webhook_url=(
+                    decrypt_value(settings.slack_webhook_url)
+                    if settings.slack_webhook_url
+                    else None
+                ),
                 sms_provider=settings.sms_provider,
-                sms_api_key=decrypt_value(settings.sms_api_key) if settings.sms_api_key else None,
+                sms_api_key=(decrypt_value(settings.sms_api_key) if settings.sms_api_key else None),
                 sms_phone_number=settings.sms_phone_number,
                 notification_email=settings.notification_email,
             )
@@ -116,8 +123,10 @@ def send_notification(user_id: str, notification_type: str, data: dict):
 @celery_app.task
 def send_meeting_reminder(meeting_id: str, user_id: str, minutes_before: int = 15):
     """Send meeting reminder notification."""
+
     async def _remind():
         from sqlalchemy import select
+
         from app.models.calendar_event import CalendarEvent
 
         async with get_async_session() as db:
@@ -156,8 +165,10 @@ def send_meeting_reminder(meeting_id: str, user_id: str, minutes_before: int = 1
 @celery_app.task
 def schedule_meeting_reminders(user_id: str):
     """Schedule reminders for upcoming meetings."""
+
     async def _schedule():
         from sqlalchemy import select
+
         from app.models.calendar_event import CalendarEvent
         from app.models.user_settings import UserSettings
 
@@ -208,15 +219,16 @@ def schedule_meeting_reminders(user_id: str):
 @celery_app.task
 def send_daily_digest(user_id: str):
     """Send daily digest email."""
+
     async def _digest():
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
+
+        from app.models.calendar_event import CalendarEvent
+        from app.models.draft import Draft
         from app.models.email import Email
         from app.models.email_account import EmailAccount
-        from app.models.draft import Draft
-        from app.models.calendar_event import CalendarEvent
         from app.models.user_settings import UserSettings
         from app.services.notification_service import NotificationService
-        from app.core.encryption import decrypt_value
 
         async with get_async_session() as db:
             # Get user settings
@@ -318,8 +330,10 @@ OpenFyxer - Your AI Executive Assistant
 @celery_app.task
 def send_follow_up_reminders(user_id: str):
     """Send reminders for emails needing follow-up."""
+
     async def _follow_up():
         from sqlalchemy import select
+
         from app.models.email import Email
         from app.models.email_account import EmailAccount
         from app.models.user_settings import UserSettings
@@ -348,12 +362,14 @@ def send_follow_up_reminders(user_id: str):
 
             # Find emails marked as to_respond that are older than follow_up_days
             emails_result = await db.execute(
-                select(Email).where(
+                select(Email)
+                .where(
                     Email.account_id.in_(account_ids),
                     Email.category == "to_respond",
                     Email.received_at < cutoff,
-                    Email.is_archived == False,
-                ).limit(10)
+                    Email.is_archived.is_(False),
+                )
+                .limit(10)
             )
             emails = emails_result.scalars().all()
 
@@ -364,10 +380,7 @@ def send_follow_up_reminders(user_id: str):
                     "follow_up_reminder",
                     {
                         "count": len(emails),
-                        "emails": [
-                            {"subject": e.subject, "sender": e.sender}
-                            for e in emails[:5]
-                        ],
+                        "emails": [{"subject": e.subject, "sender": e.sender} for e in emails[:5]],
                     },
                 )
 
