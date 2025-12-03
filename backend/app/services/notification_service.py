@@ -1,13 +1,11 @@
 """Notification service for sending notifications."""
 
 import asyncio
-import json
 from typing import Any, Dict, Optional
 
 import httpx
 
 from app.core.config import settings
-from app.core.encryption import decrypt_value
 from app.core.exceptions import NotificationError
 
 
@@ -86,8 +84,7 @@ class NotificationService:
 
             if fields:
                 attachment["fields"] = [
-                    {"title": k, "value": v, "short": True}
-                    for k, v in fields.items()
+                    {"title": k, "value": v, "short": True} for k, v in fields.items()
                 ]
 
             if actions:
@@ -179,9 +176,10 @@ class NotificationService:
             raise NotificationError("Notification email not configured")
 
         try:
-            import aiosmtplib
             from email.mime.multipart import MIMEMultipart
             from email.mime.text import MIMEText
+
+            import aiosmtplib
 
             message = MIMEMultipart("alternative")
             message["Subject"] = subject
@@ -246,8 +244,6 @@ class NotificationService:
         preview: str,
     ) -> None:
         """Send notification for new email."""
-        message = f"New {category} email from {sender}: {subject}\n\n{preview[:200]}"
-
         # Send to configured channels
         if self.slack_webhook_url:
             color = "#ff0000" if category == "urgent" else "#36a64f"

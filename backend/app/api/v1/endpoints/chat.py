@@ -3,9 +3,9 @@
 import logging
 import uuid
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,14 +45,15 @@ async def send_chat_message(
 ) -> Any:
     """Send a message to the AI assistant."""
     import time
+
     start_time = time.time()
-    
+
     user_id = str(current_user.id)
-    
+
     # Initialize chat history for user if not exists
     if user_id not in chat_histories:
         chat_histories[user_id] = []
-    
+
     # Create user message
     user_message = ChatMessageResponse(
         id=uuid.uuid4(),
@@ -63,7 +64,7 @@ async def send_chat_message(
         created_at=datetime.utcnow(),
     )
     chat_histories[user_id].append(user_message)
-    
+
     # Get context if specified
     context_text = ""
     if message_in.context_type and message_in.context_id:
@@ -72,7 +73,7 @@ async def send_chat_message(
                 select(EmailAccount.id).where(EmailAccount.user_id == current_user.id)
             )
             account_ids = [row[0] for row in accounts_result.fetchall()]
-            
+
             email_result = await db.execute(
                 select(Email).where(
                     Email.id == message_in.context_id,
@@ -82,7 +83,7 @@ async def send_chat_message(
             email = email_result.scalar_one_or_none()
             if email:
                 context_text = f"Email subject: {email.subject}\nFrom: {email.sender}\nContent: {email.body_text[:1000] if email.body_text else ''}"
-        
+
         elif message_in.context_type == "document":
             doc_result = await db.execute(
                 select(Document).where(
@@ -93,7 +94,7 @@ async def send_chat_message(
             doc = doc_result.scalar_one_or_none()
             if doc:
                 context_text = f"Document: {doc.filename}\nContent: {doc.content_text[:1000] if doc.content_text else ''}"
-        
+
         elif message_in.context_type == "meeting":
             meeting_result = await db.execute(
                 select(Meeting).where(
@@ -104,30 +105,21 @@ async def send_chat_message(
             meeting = meeting_result.scalar_one_or_none()
             if meeting:
                 context_text = f"Meeting: {meeting.title}\nTranscript: {meeting.transcript[:1000] if meeting.transcript else ''}\nSummary: {meeting.summary or ''}"
-    
+
     # Build system prompt for the AI assistant
     system_prompt = (
         "You are OpenFyxer, an AI executive assistant that helps manage emails, "
         "calendar, documents and meetings. Be concise, helpful, and professional. "
         "If you don't know something, say so honestly."
     )
-    
-    # Prepare the prompt with context if available
-    prompt = message_in.message
-    if context_text:
-        prompt = (
-            f"Here is some context from the user's {message_in.context_type}:\n"
-            f"{context_text}\n\n"
-            f"User message: {message_in.message}"
-        )
-    
+
     # Initialize LLM provider and model
     llm_provider = "local"
-    llm_model = getattr(settings, 'LOCAL_LLM_MODEL', 'tinyllama')
-    
+    llm_model = getattr(settings, "LOCAL_LLM_MODEL", "tinyllama")
+
     try:
         llm = LLMService(provider=llm_provider, model=llm_model)
-        
+
         if context_text:
             # Use the helper that's meant for QA over context
             response_text = await llm.answer_question(
@@ -142,9 +134,11 @@ async def send_chat_message(
                 max_tokens=500,
                 temperature=0.7,
             )
-        
-        logger.info(f"LLM response generated successfully using {llm_provider}/{llm_model}")
-        
+
+        logger.info(
+            f"LLM response generated successfully using {llm_provider}/{llm_model}"
+        )
+
     except LLMError as e:
         # Known LLM/HTTP issues: log, then fall back
         logger.exception("LLMError while generating chat response")
@@ -154,7 +148,7 @@ async def send_chat_message(
         )
         llm_provider = "error"
         llm_model = "placeholder"
-    except Exception as e:
+    except Exception:
         # Any unexpected error: keep old placeholder behavior
         logger.exception("Unexpected error while generating chat response")
         response_text = (
@@ -163,35 +157,41 @@ async def send_chat_message(
         )
         llm_provider = "placeholder"
         llm_model = "placeholder"
-    
+
     # Add some helpful suggestions based on message content
     suggested_actions = []
     message_lower = message_in.message.lower()
-    
+
     if "email" in message_lower:
-        suggested_actions.append({
-            "type": "action",
-            "text": "View inbox",
-            "action": "navigate",
-            "target": "/inbox",
-        })
-    
+        suggested_actions.append(
+            {
+                "type": "action",
+                "text": "View inbox",
+                "action": "navigate",
+                "target": "/inbox",
+            }
+        )
+
     if "meeting" in message_lower or "calendar" in message_lower:
-        suggested_actions.append({
-            "type": "action",
-            "text": "View calendar",
-            "action": "navigate",
-            "target": "/calendar",
-        })
-    
+        suggested_actions.append(
+            {
+                "type": "action",
+                "text": "View calendar",
+                "action": "navigate",
+                "target": "/calendar",
+            }
+        )
+
     if "document" in message_lower or "file" in message_lower:
-        suggested_actions.append({
-            "type": "action",
-            "text": "View knowledge base",
-            "action": "navigate",
-            "target": "/knowledge-base",
-        })
-    
+        suggested_actions.append(
+            {
+                "type": "action",
+                "text": "View knowledge base",
+                "action": "navigate",
+                "target": "/knowledge-base",
+            }
+        )
+
     # Create assistant message
     assistant_message = ChatMessageResponse(
         id=uuid.uuid4(),
@@ -202,13 +202,13 @@ async def send_chat_message(
         created_at=datetime.utcnow(),
     )
     chat_histories[user_id].append(assistant_message)
-    
+
     # Keep only last 100 messages
     if len(chat_histories[user_id]) > 100:
         chat_histories[user_id] = chat_histories[user_id][-100:]
-    
+
     response_time_ms = int((time.time() - start_time) * 1000)
-    
+
     return ChatResponse(
         message_id=assistant_message.id,
         response=response_text,
@@ -227,12 +227,12 @@ async def get_chat_history(
 ) -> Any:
     """Get chat history."""
     user_id = str(current_user.id)
-    
+
     if user_id not in chat_histories:
         return ChatHistory(messages=[], total=0)
-    
+
     messages = chat_histories[user_id][-limit:]
-    
+
     return ChatHistory(
         messages=messages,
         total=len(chat_histories[user_id]),
@@ -245,10 +245,10 @@ async def clear_chat_history(
 ) -> Any:
     """Clear chat history."""
     user_id = str(current_user.id)
-    
+
     if user_id in chat_histories:
         chat_histories[user_id] = []
-    
+
     return {"message": "Chat history cleared"}
 
 
@@ -259,23 +259,23 @@ async def get_chat_suggestions(
 ) -> Any:
     """Get suggested questions/actions based on current context."""
     suggestions = []
-    
+
     # Get counts for context
     accounts_result = await db.execute(
         select(EmailAccount.id).where(EmailAccount.user_id == current_user.id)
     )
     account_ids = [row[0] for row in accounts_result.fetchall()]
-    
+
     # Check for unread emails
     if account_ids:
         unread_result = await db.execute(
             select(func.count(Email.id)).where(
                 Email.account_id.in_(account_ids),
-                Email.is_read == False,
+                Email.is_read.is_(False),
             )
         )
         unread_count = unread_result.scalar() or 0
-        
+
         if unread_count > 0:
             suggestions.append(
                 ChatSuggestion(
@@ -283,7 +283,7 @@ async def get_chat_suggestions(
                     type="question",
                 )
             )
-    
+
     # Check for pending drafts
     drafts_result = await db.execute(
         select(func.count(Draft.id)).where(
@@ -292,7 +292,7 @@ async def get_chat_suggestions(
         )
     )
     pending_drafts = drafts_result.scalar() or 0
-    
+
     if pending_drafts > 0:
         suggestions.append(
             ChatSuggestion(
@@ -300,23 +300,25 @@ async def get_chat_suggestions(
                 type="action",
             )
         )
-    
+
     # Add general suggestions
-    suggestions.extend([
-        ChatSuggestion(
-            text="What meetings do I have today?",
-            type="question",
-        ),
-        ChatSuggestion(
-            text="Find emails about project updates",
-            type="question",
-        ),
-        ChatSuggestion(
-            text="Help me draft a follow-up email",
-            type="action",
-        ),
-    ])
-    
+    suggestions.extend(
+        [
+            ChatSuggestion(
+                text="What meetings do I have today?",
+                type="question",
+            ),
+            ChatSuggestion(
+                text="Find emails about project updates",
+                type="question",
+            ),
+            ChatSuggestion(
+                text="Help me draft a follow-up email",
+                type="action",
+            ),
+        ]
+    )
+
     return suggestions[:5]
 
 
@@ -331,11 +333,12 @@ async def get_chat_context(
         select(EmailAccount.id).where(EmailAccount.user_id == current_user.id)
     )
     account_ids = [row[0] for row in accounts_result.fetchall()]
-    
+
     # Count recent emails (last 7 days)
     from datetime import timedelta
+
     week_ago = datetime.utcnow() - timedelta(days=7)
-    
+
     recent_emails = 0
     if account_ids:
         emails_result = await db.execute(
@@ -345,7 +348,7 @@ async def get_chat_context(
             )
         )
         recent_emails = emails_result.scalar() or 0
-    
+
     # Count recent meetings
     meetings_result = await db.execute(
         select(func.count(Meeting.id)).where(
@@ -354,7 +357,7 @@ async def get_chat_context(
         )
     )
     recent_meetings = meetings_result.scalar() or 0
-    
+
     # Count indexed documents
     docs_result = await db.execute(
         select(func.count(Document.id)).where(
@@ -363,7 +366,7 @@ async def get_chat_context(
         )
     )
     indexed_documents = docs_result.scalar() or 0
-    
+
     # Count active drafts
     drafts_result = await db.execute(
         select(func.count(Draft.id)).where(
@@ -372,7 +375,7 @@ async def get_chat_context(
         )
     )
     active_drafts = drafts_result.scalar() or 0
-    
+
     return ChatContext(
         recent_emails=recent_emails,
         recent_meetings=recent_meetings,

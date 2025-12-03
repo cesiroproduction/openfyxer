@@ -12,8 +12,8 @@ from app.db.base import Base
 from app.db.types import StringArray
 
 if TYPE_CHECKING:
-    from app.models.user import User
     from app.models.meeting import Meeting
+    from app.models.user import User
 
 
 class CalendarEvent(Base):

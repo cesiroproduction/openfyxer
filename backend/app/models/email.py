@@ -12,9 +12,9 @@ from app.db.base import Base
 from app.db.types import StringArray
 
 if TYPE_CHECKING:
-    from app.models.email_account import EmailAccount
-    from app.models.draft import Draft
     from app.models.document import Document
+    from app.models.draft import Draft
+    from app.models.email_account import EmailAccount
 
 
 class Email(Base):
