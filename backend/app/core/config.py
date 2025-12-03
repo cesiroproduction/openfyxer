@@ -30,7 +30,9 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
     # Database
-    DATABASE_URL: str = "postgresql://openfyxer:openfyxer_secret@localhost:5432/openfyxer"
+    DATABASE_URL: str = (
+        "postgresql://openfyxer:openfyxer_secret@localhost:5432/openfyxer"
+    )
 
     @property
     def async_database_url(self) -> str:

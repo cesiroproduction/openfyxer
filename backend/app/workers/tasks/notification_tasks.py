@@ -241,7 +241,9 @@ def send_daily_digest(user_id: str):
                 return {"status": "skipped", "message": "No notification email"}
 
             # Get today's stats
-            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_start = datetime.utcnow().replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
             tomorrow = today_start + timedelta(days=1)
 
             # Count emails received today

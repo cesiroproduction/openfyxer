@@ -336,7 +336,9 @@ async def transcribe_meeting(
     return meeting
 
 
-@router.get("/{meeting_id}/transcription-progress", response_model=TranscriptionProgress)
+@router.get(
+    "/{meeting_id}/transcription-progress", response_model=TranscriptionProgress
+)
 async def get_transcription_progress(
     meeting_id: uuid.UUID,
     current_user: User = Depends(get_current_user),

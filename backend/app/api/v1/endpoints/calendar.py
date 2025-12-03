@@ -81,7 +81,9 @@ async def list_calendar_events(
     )
 
 
-@router.post("/events", response_model=CalendarEventResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/events", response_model=CalendarEventResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_calendar_event(
     event_in: CalendarEventCreate,
     current_user: User = Depends(get_current_user),
@@ -353,12 +355,15 @@ async def get_available_slots(
 
                 # Check if there's a gap before this event
                 if event.start_time > current_time:
-                    gap_duration = (event.start_time - current_time).total_seconds() / 60
+                    gap_duration = (
+                        event.start_time - current_time
+                    ).total_seconds() / 60
                     if gap_duration >= request.duration_minutes:
                         slots.append(
                             AvailableSlot(
                                 start_time=current_time,
-                                end_time=current_time + timedelta(minutes=request.duration_minutes),
+                                end_time=current_time
+                                + timedelta(minutes=request.duration_minutes),
                                 duration_minutes=request.duration_minutes,
                             )
                         )
@@ -372,7 +377,8 @@ async def get_available_slots(
                     slots.append(
                         AvailableSlot(
                             start_time=current_time,
-                            end_time=current_time + timedelta(minutes=request.duration_minutes),
+                            end_time=current_time
+                            + timedelta(minutes=request.duration_minutes),
                             duration_minutes=request.duration_minutes,
                         )
                     )

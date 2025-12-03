@@ -126,7 +126,9 @@ async def query_knowledge_base(
         )
 
         if query_in.date_from:
-            meeting_query = meeting_query.where(Meeting.meeting_date >= query_in.date_from)
+            meeting_query = meeting_query.where(
+                Meeting.meeting_date >= query_in.date_from
+            )
         if query_in.date_to:
             meeting_query = meeting_query.where(Meeting.meeting_date <= query_in.date_to)
 
@@ -155,7 +157,9 @@ async def query_knowledge_base(
     if sources:
         answer = f"Based on {len(sources)} sources found in your knowledge base, here's what I found about '{query_in.query}':\n\n"
         for i, source in enumerate(sources[:3], 1):
-            answer += f"{i}. From {source.type} '{source.title}': {source.snippet[:100]}...\n"
+            answer += (
+                f"{i}. From {source.type} '{source.title}': {source.snippet[:100]}...\n"
+            )
     else:
         answer = f"I couldn't find any relevant information about '{query_in.query}' in your knowledge base."
 
@@ -223,7 +227,9 @@ async def list_documents(
     )
 
 
-@router.post("/documents", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/documents", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED
+)
 async def upload_document(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
