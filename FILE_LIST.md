@@ -64,6 +64,7 @@ This document contains the complete list of all files included in the OpenFyxer 
 | `chat.py` | AI Chat endpoints (LLM integration) |
 | `drafts.py` | Email drafts endpoints |
 | `emails.py` | Email management endpoints |
+| `integrations_google.py` | Google OAuth integration (Gmail + Calendar) |
 | `meetings.py` | Meetings and transcription endpoints |
 | `rag.py` | RAG/Knowledge Base endpoints |
 | `settings.py` | User settings endpoints |
@@ -261,6 +262,7 @@ This document contains the complete list of all files included in the OpenFyxer 
 | `calendarService.ts` | Calendar API service |
 | `chatService.ts` | Chat API service |
 | `emailService.ts` | Email API service |
+| `googleService.ts` | Google OAuth integration service |
 | `meetingService.ts` | Meeting API service |
 | `ragService.ts` | RAG API service |
 | `settingsService.ts` | Settings API service |
