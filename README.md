@@ -272,3 +272,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 - [LlamaIndex](https://www.llamaindex.ai/) - RAG framework
 - [Ollama](https://ollama.ai/) - Local LLM runtime
 - [Whisper](https://github.com/openai/whisper) - Speech-to-text
+# openfyxer
