@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.core.encryption import decrypt_value, encrypt_value
+from app.core.encryption import encrypt_value
 from app.db.session import get_db
 from app.models.user import User
 from app.models.user_settings import UserSettings
@@ -70,14 +70,14 @@ async def get_settings(
         select(UserSettings).where(UserSettings.user_id == current_user.id)
     )
     settings = result.scalar_one_or_none()
-    
+
     if not settings:
         # Create default settings
         settings = UserSettings(user_id=current_user.id)
         db.add(settings)
         await db.commit()
         await db.refresh(settings)
-    
+
     return settings_to_response(settings)
 
 
@@ -92,13 +92,13 @@ async def update_settings(
         select(UserSettings).where(UserSettings.user_id == current_user.id)
     )
     settings = result.scalar_one_or_none()
-    
+
     if not settings:
         settings = UserSettings(user_id=current_user.id)
         db.add(settings)
-    
+
     update_data = settings_in.model_dump(exclude_unset=True)
-    
+
     # Encrypt sensitive fields
     sensitive_fields = [
         "openai_api_key",
@@ -108,15 +108,15 @@ async def update_settings(
         "sms_api_key",
         "slack_webhook_url",
     ]
-    
+
     for field, value in update_data.items():
         if field in sensitive_fields and value:
             value = encrypt_value(value)
         setattr(settings, field, value)
-    
+
     await db.commit()
     await db.refresh(settings)
-    
+
     return settings_to_response(settings)
 
 
@@ -131,16 +131,15 @@ async def test_notification(
         select(UserSettings).where(UserSettings.user_id == current_user.id)
     )
     settings = result.scalar_one_or_none()
-    
+
     if not settings:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Settings not configured",
         )
-    
+
     channel = test_in.channel
-    message = test_in.message
-    
+
     if channel == "slack":
         if not settings.slack_webhook_url:
             raise HTTPException(
@@ -149,7 +148,7 @@ async def test_notification(
             )
         # TODO: Send test Slack message
         # webhook_url = decrypt_value(settings.slack_webhook_url)
-        
+
     elif channel == "sms":
         if not settings.sms_api_key or not settings.sms_phone_number:
             raise HTTPException(
@@ -157,7 +156,7 @@ async def test_notification(
                 detail="SMS not configured",
             )
         # TODO: Send test SMS
-        
+
     elif channel == "email":
         if not settings.notification_email:
             raise HTTPException(
@@ -165,11 +164,11 @@ async def test_notification(
                 detail="Notification email not configured",
             )
         # TODO: Send test email
-        
+
     elif channel == "webhook":
         # TODO: Send test webhook
         pass
-    
+
     return {"message": f"Test notification sent to {channel}"}
 
 
@@ -182,7 +181,7 @@ async def analyze_email_style(
     """Analyze user's email writing style."""
     # TODO: Implement actual style analysis using sent emails
     # For now, return placeholder data
-    
+
     return StyleAnalysisResponse(
         average_length=150,
         common_greetings=["Hi", "Hello", "Dear"],
@@ -209,7 +208,7 @@ async def get_llm_providers(
         select(UserSettings).where(UserSettings.user_id == current_user.id)
     )
     settings = result.scalar_one_or_none()
-    
+
     providers = [
         {
             "id": "local",
@@ -247,7 +246,7 @@ async def get_llm_providers(
             "requires_api_key": True,
         },
     ]
-    
+
     return {"providers": providers}
 
 
@@ -286,7 +285,7 @@ async def get_whisper_models() -> Any:
             "size_mb": 2900,
         },
     ]
-    
+
     return {"models": models}
 
 
@@ -303,18 +302,18 @@ async def delete_api_key(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid provider. Valid options: {valid_providers}",
         )
-    
+
     result = await db.execute(
         select(UserSettings).where(UserSettings.user_id == current_user.id)
     )
     settings = result.scalar_one_or_none()
-    
+
     if not settings:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Settings not found",
         )
-    
+
     field_map = {
         "openai": "openai_api_key",
         "gemini": "gemini_api_key",
@@ -323,10 +322,10 @@ async def delete_api_key(
         "sms": "sms_api_key",
         "slack": "slack_webhook_url",
     }
-    
+
     field = field_map[provider]
     setattr(settings, field, None)
-    
+
     await db.commit()
-    
+
     return {"message": f"{provider} API key deleted"}

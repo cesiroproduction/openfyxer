@@ -3,10 +3,8 @@
 import asyncio
 import os
 import tempfile
-from datetime import datetime
 from typing import Any, Dict, Optional
 
-from app.core.config import settings
 from app.core.exceptions import TranscriptionError
 
 
@@ -37,6 +35,7 @@ class TranscriptionService:
                 if device == "auto":
                     try:
                         import torch
+
                         device = "cuda" if torch.cuda.is_available() else "cpu"
                     except ImportError:
                         device = "cpu"
@@ -66,6 +65,7 @@ class TranscriptionService:
 
         try:
             import time
+
             start_time = time.time()
 
             # Run transcription in thread pool
@@ -114,11 +114,13 @@ class TranscriptionService:
         full_text = []
 
         for segment in segments:
-            segment_list.append({
-                "start": segment.start,
-                "end": segment.end,
-                "text": segment.text.strip(),
-            })
+            segment_list.append(
+                {
+                    "start": segment.start,
+                    "end": segment.end,
+                    "text": segment.text.strip(),
+                }
+            )
             full_text.append(segment.text.strip())
 
         return {
@@ -183,8 +185,6 @@ class TranscriptionService:
     ) -> float:
         """Get audio file duration in seconds."""
         try:
-            import subprocess
-
             loop = asyncio.get_event_loop()
             duration = await loop.run_in_executor(
                 None,
@@ -203,9 +203,12 @@ class TranscriptionService:
         result = subprocess.run(
             [
                 "ffprobe",
-                "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
                 audio_path,
             ],
             capture_output=True,
@@ -225,8 +228,6 @@ class TranscriptionService:
     ) -> str:
         """Convert audio to optimal format for transcription."""
         try:
-            import subprocess
-
             # Generate output path
             output_path = tempfile.mktemp(suffix=f".{output_format}")
 
@@ -256,9 +257,12 @@ class TranscriptionService:
         result = subprocess.run(
             [
                 "ffmpeg",
-                "-i", input_path,
-                "-ar", str(sample_rate),
-                "-ac", "1",
+                "-i",
+                input_path,
+                "-ar",
+                str(sample_rate),
+                "-ac",
+                "1",
                 "-y",
                 output_path,
             ],
@@ -301,10 +305,13 @@ class TranscriptionService:
         result = subprocess.run(
             [
                 "ffmpeg",
-                "-i", video_path,
+                "-i",
+                video_path,
                 "-vn",
-                "-ar", "16000",
-                "-ac", "1",
+                "-ar",
+                "16000",
+                "-ac",
+                "1",
                 "-y",
                 output_path,
             ],

@@ -5,15 +5,16 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.types import StringArray
 
 if TYPE_CHECKING:
-    from app.models.email_account import EmailAccount
-    from app.models.draft import Draft
     from app.models.document import Document
+    from app.models.draft import Draft
+    from app.models.email_account import EmailAccount
 
 
 class Email(Base):
@@ -52,15 +53,15 @@ class Email(Base):
         nullable=True,
     )
     recipients: Mapped[Optional[List[str]]] = mapped_column(
-        ARRAY(String),
+        StringArray(),
         nullable=True,
     )
     cc: Mapped[Optional[List[str]]] = mapped_column(
-        ARRAY(String),
+        StringArray(),
         nullable=True,
     )
     bcc: Mapped[Optional[List[str]]] = mapped_column(
-        ARRAY(String),
+        StringArray(),
         nullable=True,
     )
     body_text: Mapped[Optional[str]] = mapped_column(
@@ -80,7 +81,7 @@ class Email(Base):
         nullable=True,
     )  # urgent, to_respond, fyi, newsletter, spam
     labels: Mapped[Optional[List[str]]] = mapped_column(
-        ARRAY(String),
+        StringArray(),
         nullable=True,
     )
     folder: Mapped[Optional[str]] = mapped_column(

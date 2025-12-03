@@ -2,17 +2,16 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Optional
 from uuid import UUID
 
-from celery import shared_task
-
 from app.workers.celery_app import celery_app
+from app.workers.tasks.rag_tasks import index_email
 
 
 def get_async_session():
     """Get async database session for tasks."""
     from app.db.session import async_session_maker
+
     return async_session_maker()
 
 
@@ -29,10 +28,12 @@ def run_async(coro):
 @celery_app.task(bind=True, max_retries=3)
 def sync_email_account(self, account_id: str, user_id: str, max_emails: int = 100):
     """Sync emails for a specific account."""
+
     async def _sync():
         from sqlalchemy import select
-        from app.models.email_account import EmailAccount
+
         from app.models.audit_log import AuditLog
+        from app.models.email_account import EmailAccount
         from app.services.email_service import EmailService
 
         async with get_async_session() as db:
@@ -100,15 +101,17 @@ def sync_email_account(self, account_id: str, user_id: str, max_emails: int = 10
 @celery_app.task
 def sync_all_accounts():
     """Sync all active email accounts."""
+
     async def _sync_all():
         from sqlalchemy import select
+
         from app.models.email_account import EmailAccount
 
         async with get_async_session() as db:
             result = await db.execute(
                 select(EmailAccount).where(
-                    EmailAccount.is_active == True,
-                    EmailAccount.sync_enabled == True,
+                    EmailAccount.is_active,
+                    EmailAccount.sync_enabled,
                 )
             )
             accounts = result.scalars().all()
@@ -127,13 +130,14 @@ def sync_all_accounts():
 @celery_app.task
 def sync_all_calendars():
     """Sync all calendars."""
+
     async def _sync_calendars():
         from sqlalchemy import select
+
         from app.models.user import User
-        from app.models.user_settings import UserSettings
 
         async with get_async_session() as db:
-            result = await db.execute(select(User).where(User.is_active == True))
+            result = await db.execute(select(User).where(User.is_active))
             users = result.scalars().all()
 
             # TODO: Implement calendar sync for each user
@@ -145,8 +149,10 @@ def sync_all_calendars():
 @celery_app.task(bind=True, max_retries=3)
 def classify_email(self, email_id: str, user_id: str):
     """Classify an email using AI."""
+
     async def _classify():
         from sqlalchemy import select
+
         from app.models.email import Email
         from app.models.email_account import EmailAccount
         from app.services.llm_service import LLMService
@@ -206,14 +212,17 @@ def classify_email(self, email_id: str, user_id: str):
 @celery_app.task(bind=True, max_retries=3)
 def generate_draft(self, email_id: str, user_id: str, tone: str = "professional"):
     """Generate a draft response for an email."""
+
     async def _generate():
+        import time
+
         from sqlalchemy import select
+
+        from app.models.draft import Draft
         from app.models.email import Email
         from app.models.email_account import EmailAccount
-        from app.models.draft import Draft
         from app.models.user_settings import UserSettings
         from app.services.llm_service import LLMService
-        import time
 
         async with get_async_session() as db:
             try:
@@ -289,6 +298,7 @@ def generate_draft(self, email_id: str, user_id: str, tone: str = "professional"
 
                 # Send notification
                 from app.workers.tasks.notification_tasks import send_notification
+
                 send_notification.delay(
                     user_id,
                     "draft_ready",
@@ -313,8 +323,10 @@ def generate_draft(self, email_id: str, user_id: str, tone: str = "professional"
 @celery_app.task(bind=True, max_retries=3)
 def send_draft(self, draft_id: str, user_id: str):
     """Send a draft as email."""
+
     async def _send():
         from sqlalchemy import select
+
         from app.models.draft import Draft
         from app.models.email import Email
         from app.models.email_account import EmailAccount
@@ -383,8 +395,10 @@ def send_draft(self, draft_id: str, user_id: str):
 @celery_app.task
 def cleanup_old_audit_logs():
     """Clean up audit logs older than 90 days."""
+
     async def _cleanup():
         from sqlalchemy import delete
+
         from app.models.audit_log import AuditLog
 
         async with get_async_session() as db:
@@ -398,7 +412,3 @@ def cleanup_old_audit_logs():
             return {"deleted_count": result.rowcount}
 
     return run_async(_cleanup())
-
-
-# Import for task reference
-from app.workers.tasks.rag_tasks import index_email
