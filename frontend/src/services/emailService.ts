@@ -82,23 +82,23 @@ export const emailService = {
   },
 
   markAsRead: async (id: string): Promise<void> => {
-    await api.post(`/emails/${id}/read`)
+    await api.put(`/emails/${id}/read?is_read=true`)
   },
 
   markAsUnread: async (id: string): Promise<void> => {
-    await api.post(`/emails/${id}/unread`)
+    await api.put(`/emails/${id}/read?is_read=false`)
   },
 
-  toggleStar: async (id: string): Promise<void> => {
-    await api.post(`/emails/${id}/star`)
+  toggleStar: async (id: string, isStarred: boolean = true): Promise<void> => {
+    await api.put(`/emails/${id}/star?is_starred=${isStarred}`)
   },
 
   archive: async (id: string): Promise<void> => {
-    await api.post(`/emails/${id}/archive`)
+    await api.put(`/emails/${id}/archive?is_archived=true`)
   },
 
   categorize: async (id: string, category: string): Promise<void> => {
-    await api.post(`/emails/${id}/categorize`, { category })
+    await api.put(`/emails/${id}/category`, { category })
   },
 
   getAccounts: async (): Promise<EmailAccount[]> => {

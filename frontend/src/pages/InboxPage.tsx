@@ -53,7 +53,8 @@ export default function InboxPage() {
   })
 
   const toggleStarMutation = useMutation({
-    mutationFn: (id: string) => emailService.toggleStar(id),
+    mutationFn: ({ id, isStarred }: { id: string; isStarred: boolean }) => 
+      emailService.toggleStar(id, !isStarred),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['emails'] }),
   })
 
@@ -72,7 +73,14 @@ export default function InboxPage() {
       toast.success('Draft generated')
       queryClient.invalidateQueries({ queryKey: ['drafts'] })
     },
-    onError: () => toast.error('Failed to generate draft'),
+    onError: (error: Error & { response?: { data?: { detail?: string } } }) => {
+      const detail = error.response?.data?.detail
+      if (detail?.includes('pending draft already exists')) {
+        toast.error('A draft already exists for this email')
+      } else {
+        toast.error('Failed to generate draft')
+      }
+    },
   })
 
   const handleSync = async () => {
@@ -203,7 +211,7 @@ export default function InboxPage() {
                   </h2>
                   <div className="flex items-center space-x-2">
                     <button
-                      onClick={() => toggleStarMutation.mutate(selectedEmail.id)}
+                      onClick={() => toggleStarMutation.mutate({ id: selectedEmail.id, isStarred: selectedEmail.is_starred })}
                       className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                     >
                       {selectedEmail.is_starred ? (
