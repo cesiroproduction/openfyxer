@@ -215,7 +215,9 @@ class RAGService:
             driver = await self.get_neo4j_driver()
 
             # Get embeddings for meeting content
-            content = f"{meeting.title} {meeting.transcript or ''} {meeting.summary or ''}"
+            content = (
+                f"{meeting.title} {meeting.transcript or ''} {meeting.summary or ''}"
+            )
             embeddings = await self.llm_service.get_embeddings([content[:5000]])
 
             async with driver.session() as session:
@@ -425,7 +427,8 @@ class RAGService:
                 select(Email)
                 .where(
                     Email.account_id.in_(account_ids),
-                    (Email.subject.ilike(search_term)) | (Email.body_text.ilike(search_term)),
+                    (Email.subject.ilike(search_term))
+                    | (Email.body_text.ilike(search_term)),
                 )
                 .limit(max_results)
             )
@@ -448,7 +451,8 @@ class RAGService:
             select(Document)
             .where(
                 Document.user_id == user_id,
-                (Document.filename.ilike(search_term)) | (Document.content_text.ilike(search_term)),
+                (Document.filename.ilike(search_term))
+                | (Document.content_text.ilike(search_term)),
             )
             .limit(max_results)
         )
@@ -469,7 +473,8 @@ class RAGService:
             select(Meeting)
             .where(
                 Meeting.user_id == user_id,
-                (Meeting.title.ilike(search_term)) | (Meeting.transcript.ilike(search_term)),
+                (Meeting.title.ilike(search_term))
+                | (Meeting.transcript.ilike(search_term)),
             )
             .limit(max_results)
         )

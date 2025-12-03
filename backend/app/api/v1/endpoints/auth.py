@@ -60,7 +60,9 @@ async def create_audit_log(
     await db.commit()
 
 
-@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED
+)
 async def register(
     user_in: UserCreate,
     request: Request,

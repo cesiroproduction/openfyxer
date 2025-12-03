@@ -265,8 +265,12 @@ class CalendarService:
             end = event_data.get("end", {})
 
             is_all_day = event_data.get("isAllDay", False)
-            start_time = datetime.fromisoformat(start.get("dateTime", "").replace("Z", "+00:00"))
-            end_time = datetime.fromisoformat(end.get("dateTime", "").replace("Z", "+00:00"))
+            start_time = datetime.fromisoformat(
+                start.get("dateTime", "").replace("Z", "+00:00")
+            )
+            end_time = datetime.fromisoformat(
+                end.get("dateTime", "").replace("Z", "+00:00")
+            )
 
             # Parse attendees
             attendees = [
@@ -283,7 +287,9 @@ class CalendarService:
                 existing_event.start_time = start_time
                 existing_event.end_time = end_time
                 existing_event.timezone = start.get("timeZone")
-                existing_event.location = event_data.get("location", {}).get("displayName")
+                existing_event.location = event_data.get("location", {}).get(
+                    "displayName"
+                )
                 existing_event.meeting_link = meeting_link
                 existing_event.attendees = attendees
                 existing_event.organizer = (
@@ -493,15 +499,23 @@ class CalendarService:
                 )
 
                 if not respect_working_hours:
-                    day_start = datetime.combine(current_date, datetime.min.time().replace(hour=8))
-                    day_end = datetime.combine(current_date, datetime.min.time().replace(hour=20))
+                    day_start = datetime.combine(
+                        current_date, datetime.min.time().replace(hour=8)
+                    )
+                    day_end = datetime.combine(
+                        current_date, datetime.min.time().replace(hour=20)
+                    )
 
                 current_time = max(day_start, date_from)
-                day_events = [e for e in existing_events if e.start_time.date() == current_date]
+                day_events = [
+                    e for e in existing_events if e.start_time.date() == current_date
+                ]
 
                 for event in day_events:
                     if event.start_time > current_time:
-                        gap_minutes = (event.start_time - current_time).total_seconds() / 60
+                        gap_minutes = (
+                            event.start_time - current_time
+                        ).total_seconds() / 60
                         if gap_minutes >= duration_minutes:
                             slots.append(
                                 {
@@ -513,7 +527,9 @@ class CalendarService:
                     current_time = event.end_time + timedelta(minutes=buffer_minutes)
 
                 if current_time < min(day_end, date_to):
-                    remaining = (min(day_end, date_to) - current_time).total_seconds() / 60
+                    remaining = (
+                        min(day_end, date_to) - current_time
+                    ).total_seconds() / 60
                     if remaining >= duration_minutes:
                         slots.append(
                             {
@@ -581,7 +597,9 @@ class CalendarService:
         user_id: UUID,
     ) -> List[CalendarEvent]:
         """Get today's events."""
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.utcnow().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         today_end = today_start + timedelta(days=1)
 
         result = await self.db.execute(

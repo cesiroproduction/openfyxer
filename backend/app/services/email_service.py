@@ -27,7 +27,9 @@ class EmailService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_account(self, account_id: UUID, user_id: UUID) -> Optional[EmailAccount]:
+    async def get_account(
+        self, account_id: UUID, user_id: UUID
+    ) -> Optional[EmailAccount]:
         """Get email account by ID."""
         result = await self.db.execute(
             select(EmailAccount).where(
@@ -215,7 +217,9 @@ class EmailService:
     ) -> List[Email]:
         """Generic IMAP sync implementation."""
         try:
-            password = decrypt_value(account.imap_password) if account.imap_password else None
+            password = (
+                decrypt_value(account.imap_password) if account.imap_password else None
+            )
             if not password:
                 raise EmailProviderError("IMAP password not configured")
 
@@ -300,9 +304,13 @@ class EmailService:
             for part in msg.walk():
                 content_type = part.get_content_type()
                 if content_type == "text/plain":
-                    text_body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                    text_body = part.get_payload(decode=True).decode(
+                        "utf-8", errors="ignore"
+                    )
                 elif content_type == "text/html":
-                    html_body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                    html_body = part.get_payload(decode=True).decode(
+                        "utf-8", errors="ignore"
+                    )
         else:
             content_type = msg.get_content_type()
             payload = msg.get_payload(decode=True)
@@ -346,14 +354,20 @@ class EmailService:
                 for part in payload["parts"]:
                     if part.get("mimeType") == "text/plain":
                         data = part.get("body", {}).get("data", "")
-                        body_text = base64.urlsafe_b64decode(data).decode("utf-8", errors="ignore")
+                        body_text = base64.urlsafe_b64decode(data).decode(
+                            "utf-8", errors="ignore"
+                        )
                     elif part.get("mimeType") == "text/html":
                         data = part.get("body", {}).get("data", "")
-                        body_html = base64.urlsafe_b64decode(data).decode("utf-8", errors="ignore")
+                        body_html = base64.urlsafe_b64decode(data).decode(
+                            "utf-8", errors="ignore"
+                        )
             else:
                 data = payload.get("body", {}).get("data", "")
                 if data:
-                    body_text = base64.urlsafe_b64decode(data).decode("utf-8", errors="ignore")
+                    body_text = base64.urlsafe_b64decode(data).decode(
+                        "utf-8", errors="ignore"
+                    )
 
             email_obj = Email(
                 account_id=account.id,
@@ -370,7 +384,9 @@ class EmailService:
                 has_attachments=any(part.get("filename") for part in payload.get("parts", [])),
                 is_read="UNREAD" not in msg_data.get("labelIds", []),
                 is_starred="STARRED" in msg_data.get("labelIds", []),
-                received_at=datetime.fromtimestamp(int(msg_data.get("internalDate", 0)) / 1000),
+                received_at=datetime.fromtimestamp(
+                    int(msg_data.get("internalDate", 0)) / 1000
+                ),
             )
 
             self.db.add(email_obj)
@@ -404,8 +420,12 @@ class EmailService:
                 message_id=message_id,
                 thread_id=msg_data.get("conversationId"),
                 subject=msg_data.get("subject"),
-                sender=msg_data.get("from", {}).get("emailAddress", {}).get("address", ""),
-                sender_name=msg_data.get("from", {}).get("emailAddress", {}).get("name"),
+                sender=msg_data.get("from", {})
+                .get("emailAddress", {})
+                .get("address", ""),
+                sender_name=msg_data.get("from", {})
+                .get("emailAddress", {})
+                .get("name"),
                 recipients=[
                     r.get("emailAddress", {}).get("address", "")
                     for r in msg_data.get("toRecipients", [])
@@ -495,9 +515,13 @@ class EmailService:
     ) -> bool:
         """Send an email."""
         if account.provider == "gmail":
-            return await self._send_gmail(account, to, subject, body, cc, bcc, html_body)
+            return await self._send_gmail(
+                account, to, subject, body, cc, bcc, html_body
+            )
         elif account.provider == "outlook":
-            return await self._send_outlook(account, to, subject, body, cc, bcc, html_body)
+            return await self._send_outlook(
+                account, to, subject, body, cc, bcc, html_body
+            )
         else:
             return await self._send_smtp(account, to, subject, body, cc, bcc, html_body)
 
@@ -683,13 +707,21 @@ class EmailService:
         body = (email_obj.body_text or "").lower()
         content = f"{subject} {body}"
 
-        if any(word in content for word in ["urgent", "asap", "immediately", "critical"]):
+        if any(
+            word in content for word in ["urgent", "asap", "immediately", "critical"]
+        ):
             return "urgent"
-        elif any(word in content for word in ["unsubscribe", "newsletter", "weekly digest"]):
+        elif any(
+            word in content for word in ["unsubscribe", "newsletter", "weekly digest"]
+        ):
             return "newsletter"
-        elif any(word in content for word in ["spam", "winner", "lottery", "click here"]):
+        elif any(
+            word in content for word in ["spam", "winner", "lottery", "click here"]
+        ):
             return "spam"
-        elif any(word in content for word in ["reply", "response", "answer", "question"]):
+        elif any(
+            word in content for word in ["reply", "response", "answer", "question"]
+        ):
             return "to_respond"
         else:
             return "fyi"

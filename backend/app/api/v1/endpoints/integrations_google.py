@@ -214,7 +214,9 @@ async def google_status(
     return {
         "connected": len(connected_accounts) > 0,
         "accounts": connected_accounts,
-        "oauth_configured": bool(settings.google_client_id and settings.google_client_secret),
+        "oauth_configured": bool(
+            settings.google_client_id and settings.google_client_secret
+        ),
     }
 
 

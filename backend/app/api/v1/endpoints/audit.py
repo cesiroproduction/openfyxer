@@ -21,7 +21,9 @@ router = APIRouter()
 async def list_audit_logs(
     action: Optional[str] = None,
     entity_type: Optional[str] = None,
-    status_filter: Optional[str] = Query(None, alias="status", pattern="^(success|failure|error)$"),
+    status_filter: Optional[str] = Query(
+        None, alias="status", pattern="^(success|failure|error)$"
+    ),
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
     pagination: Pagination = Depends(get_pagination),

@@ -31,15 +31,25 @@ class LLMService:
     ) -> str:
         """Generate text using the configured LLM."""
         if self.provider == "local":
-            return await self._generate_local(prompt, system_prompt, max_tokens, temperature, stop)
+            return await self._generate_local(
+                prompt, system_prompt, max_tokens, temperature, stop
+            )
         elif self.provider == "openai":
-            return await self._generate_openai(prompt, system_prompt, max_tokens, temperature, stop)
+            return await self._generate_openai(
+                prompt, system_prompt, max_tokens, temperature, stop
+            )
         elif self.provider == "gemini":
-            return await self._generate_gemini(prompt, system_prompt, max_tokens, temperature, stop)
+            return await self._generate_gemini(
+                prompt, system_prompt, max_tokens, temperature, stop
+            )
         elif self.provider == "claude":
-            return await self._generate_claude(prompt, system_prompt, max_tokens, temperature, stop)
+            return await self._generate_claude(
+                prompt, system_prompt, max_tokens, temperature, stop
+            )
         elif self.provider == "cohere":
-            return await self._generate_cohere(prompt, system_prompt, max_tokens, temperature, stop)
+            return await self._generate_cohere(
+                prompt, system_prompt, max_tokens, temperature, stop
+            )
         else:
             raise LLMError(f"Unsupported LLM provider: {self.provider}")
 
@@ -273,7 +283,9 @@ Do not include placeholder text like [Your Name].
             if user_style.get("common_greetings"):
                 base_prompt += f"\nPreferred greetings: {', '.join(user_style['common_greetings'])}"
             if user_style.get("common_closings"):
-                base_prompt += f"\nPreferred closings: {', '.join(user_style['common_closings'])}"
+                base_prompt += (
+                    f"\nPreferred closings: {', '.join(user_style['common_closings'])}"
+                )
             if user_style.get("signature"):
                 base_prompt += f"\nSignature: {user_style['signature']}"
 

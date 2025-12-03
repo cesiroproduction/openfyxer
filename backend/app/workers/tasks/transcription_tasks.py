@@ -73,7 +73,9 @@ def transcribe_meeting(
                 meeting.transcript = result["text"]
                 meeting.transcript_language = result["language"]
                 meeting.transcription_model = f"whisper-{model}"
-                meeting.transcription_time_seconds = result["transcription_time_seconds"]
+                meeting.transcription_time_seconds = result[
+                    "transcription_time_seconds"
+                ]
                 meeting.audio_duration_seconds = result["duration_seconds"]
                 meeting.status = "transcribed"
                 meeting.transcribed_at = datetime.utcnow()
@@ -87,7 +89,9 @@ def transcribe_meeting(
                     details={
                         "language": result["language"],
                         "duration_seconds": result["duration_seconds"],
-                        "transcription_time_seconds": result["transcription_time_seconds"],
+                        "transcription_time_seconds": result[
+                            "transcription_time_seconds"
+                        ],
                     },
                     status="success",
                 )
