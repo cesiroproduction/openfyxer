@@ -23,6 +23,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql://openfyxer:openfyxer_secret@postgres:5432/openfyxer
       - NEO4J_URI=bolt://neo4j:7687
@@ -34,6 +36,9 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-your-encryption-key-32-bytes-long!}
       - CORS_ORIGINS=http://localhost:3000
       - DEBUG=${DEBUG:-false}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/v1/integrations/google/callback}
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,6 +60,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     command: celery -A app.workers.celery_app worker --loglevel=info
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql://openfyxer:openfyxer_secret@postgres:5432/openfyxer
       - NEO4J_URI=bolt://neo4j:7687
