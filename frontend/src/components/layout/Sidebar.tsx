@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   HomeIcon,
   InboxIcon,
+  PencilSquareIcon,
   CalendarIcon,
   BookOpenIcon,
   VideoCameraIcon,
@@ -22,6 +23,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
   const navigation = [
     { name: t('nav.dashboard'), href: '/', icon: HomeIcon },
     { name: t('nav.inbox'), href: '/inbox', icon: InboxIcon },
+    { name: 'Drafts', href: '/drafts', icon: PencilSquareIcon },
     { name: t('nav.calendar'), href: '/calendar', icon: CalendarIcon },
     { name: t('nav.knowledgeBase'), href: '/knowledge-base', icon: BookOpenIcon },
     { name: t('nav.meetings'), href: '/meetings', icon: VideoCameraIcon },

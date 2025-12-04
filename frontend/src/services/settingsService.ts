@@ -6,6 +6,7 @@ export interface UserSettings {
   llm_provider: string
   llm_model?: string
   email_style: string
+  email_signature?: string
   default_language: string
   timezone: string
   working_hours_start?: string
@@ -18,6 +19,8 @@ export interface UserSettings {
   sms_provider?: string
   sms_phone_number?: string
   notification_email?: string
+  // Add index signature to allow loose typing if needed for partial updates
+  [key: string]: any
 }
 
 export interface LLMProvider {
@@ -49,7 +52,7 @@ export const settingsService = {
   },
 
   deleteLLMApiKey: async (provider: string): Promise<void> => {
-    await api.delete(`/settings/llm-api-key/${provider}`)
+    await api.delete(`/settings/api-key/${provider}`)
   },
 
   testNotification: async (channel: string): Promise<{ success: boolean }> => {
@@ -58,7 +61,7 @@ export const settingsService = {
   },
 
   analyzeEmailStyle: async (): Promise<{ style_profile: string }> => {
-    const response = await api.post('/settings/analyze-email-style')
+    const response = await api.post('/settings/analyze-style', { analyze_sent_emails: true })
     return response.data
   },
 }

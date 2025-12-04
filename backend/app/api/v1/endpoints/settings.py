@@ -1,8 +1,8 @@
 """Settings endpoints."""
 
-from typing import Any
+from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -114,6 +114,57 @@ async def update_settings(
     await db.refresh(settings)
 
     return settings_to_response(settings)
+
+
+# --- ADDED FIX: Endpoint for setting API Keys ---
+@router.post("/llm-api-key")
+async def set_llm_api_key(
+    data: Dict[str, str] = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Set an API key for a specific provider."""
+    provider = data.get("provider")
+    api_key = data.get("api_key")
+
+    if not provider or not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provider and api_key are required",
+        )
+
+    valid_providers = ["openai", "gemini", "claude", "cohere"]
+    if provider not in valid_providers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid provider. Valid options: {valid_providers}",
+        )
+
+    result = await db.execute(select(UserSettings).where(UserSettings.user_id == current_user.id))
+    settings = result.scalar_one_or_none()
+
+    if not settings:
+        settings = UserSettings(user_id=current_user.id)
+        db.add(settings)
+
+    # Map provider to database field
+    field_map = {
+        "openai": "openai_api_key",
+        "gemini": "gemini_api_key",
+        "claude": "claude_api_key",
+        "cohere": "cohere_api_key",
+    }
+
+    # Encrypt and save
+    encrypted_key = encrypt_value(api_key)
+    setattr(settings, field_map[provider], encrypted_key)
+    
+    # Also set this provider as the active one
+    settings.llm_provider = provider
+
+    await db.commit()
+    return {"message": f"API key for {provider} saved successfully"}
+# -----------------------------------------------
 
 
 @router.post("/test-notification")

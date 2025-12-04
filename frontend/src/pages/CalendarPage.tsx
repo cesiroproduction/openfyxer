@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -75,10 +75,6 @@ export default function CalendarPage() {
     onError: () => toast.error('Failed to sync calendar'),
   })
 
-  useEffect(() => {
-    syncCalendarMutation.mutate()
-  }, [syncCalendarMutation])
-
   const createEventMutation = useMutation({
     mutationFn: (data: Partial<CalendarEvent>) => calendarService.createEvent(data),
     onSuccess: () => {
@@ -132,9 +128,10 @@ export default function CalendarPage() {
       location: data.location,
       attendees: data.attendees?.split(',').map((a) => a.trim()),
       is_all_day: data.is_all_day,
+      provider: 'google', // <--- LINIA NOUĂ CRITICĂ
     })
   }
-
+  
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-6">

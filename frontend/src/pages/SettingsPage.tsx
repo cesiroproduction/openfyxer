@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
 import {
   UserCircleIcon,
   EnvelopeIcon,
@@ -11,13 +10,13 @@ import {
   PaintBrushIcon,
   PlusIcon,
   TrashIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
-import { settingsService, UserSettings, LLMProvider } from '../services/settingsService'
+import { settingsService, UserSettings } from '../services/settingsService'
 import { emailService, EmailAccount } from '../services/emailService'
 import { googleService } from '../services/googleService'
-import { authService } from '../services/authService'
 import { useAuthStore } from '../store/authStore'
 import { useSettingsStore } from '../store/settingsStore'
 
@@ -26,13 +25,12 @@ type SettingsTab = 'profile' | 'email' | 'llm' | 'notifications' | 'security' | 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
-  const { user, updateUser } = useAuthStore()
+  const { user } = useAuthStore()
   const { theme, setTheme, language, setLanguage } = useSettingsStore()
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
   const [showAddAccount, setShowAddAccount] = useState(false)
-  const [show2FASetup, setShow2FASetup] = useState(false)
-  const [qrCode, setQrCode] = useState<string | null>(null)
 
+  // Fetch settings
   const { data: settings } = useQuery({
     queryKey: ['settings'],
     queryFn: settingsService.getSettings,
@@ -48,11 +46,7 @@ export default function SettingsPage() {
     queryFn: googleService.getStatus,
   })
 
-  const { data: llmProviders } = useQuery({
-    queryKey: ['llm-providers'],
-    queryFn: settingsService.getLLMProviders,
-  })
-
+  // Mutations
   const updateSettingsMutation = useMutation({
     mutationFn: (data: Partial<UserSettings>) => settingsService.updateSettings(data),
     onSuccess: () => {
@@ -84,55 +78,27 @@ export default function SettingsPage() {
     mutationFn: ({ provider, apiKey }: { provider: string; apiKey: string }) =>
       settingsService.setLLMApiKey(provider, apiKey),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['llm-providers'] })
-      toast.success('API key saved')
+      queryClient.invalidateQueries({ queryKey: ['settings'] })
+      toast.success('API key saved successfully')
     },
+    onError: () => toast.error('Failed to save API key')
   })
 
-  const testNotificationMutation = useMutation({
-    mutationFn: (channel: string) => settingsService.testNotification(channel),
-    onSuccess: () => toast.success('Test notification sent'),
-    onError: () => toast.error('Failed to send test notification'),
-  })
-
-  const changePasswordMutation = useMutation({
-    mutationFn: ({ current, newPass }: { current: string; newPass: string }) =>
-      authService.changePassword(current, newPass),
-    onSuccess: () => toast.success('Password changed'),
-    onError: () => toast.error('Failed to change password'),
-  })
-
-  const setup2FAMutation = useMutation({
-    mutationFn: authService.setup2FA,
-    onSuccess: (data) => {
-      setQrCode(data.qr_code)
-      setShow2FASetup(true)
-    },
-  })
-
-  const verify2FAMutation = useMutation({
-    mutationFn: (code: string) => authService.verify2FA(code),
-    onSuccess: () => {
-      updateUser({ two_factor_enabled: true })
-      setShow2FASetup(false)
-      setQrCode(null)
-      toast.success('2FA enabled')
-    },
-    onError: () => toast.error('Invalid code'),
-  })
-
-  const disable2FAMutation = useMutation({
-    mutationFn: (code: string) => authService.disable2FA(code),
-    onSuccess: () => {
-      updateUser({ two_factor_enabled: false })
-      toast.success('2FA disabled')
-    },
-  })
-
-  const { register: registerPassword, handleSubmit: handlePasswordSubmit, reset: resetPassword } =
-    useForm<{ current: string; newPass: string; confirm: string }>()
-
-  const { register: register2FA, handleSubmit: handle2FASubmit } = useForm<{ code: string }>()
+  const handleLanguageChange = (lang: string) => {
+    i18n.changeLanguage(lang)
+    setLanguage(lang)
+    updateSettingsMutation.mutate({ default_language: lang })
+  }
+  
+  const getProviderLabel = (provider: string) => {
+    switch(provider) {
+      case 'openai': return 'OpenAI API Key';
+      case 'gemini': return 'Google Gemini API Key';
+      case 'claude': return 'Anthropic API Key';
+      case 'cohere': return 'Cohere API Key';
+      default: return 'API Key';
+    }
+  }
 
   const tabs = [
     { id: 'profile', label: t('settings.profile'), icon: UserCircleIcon },
@@ -142,12 +108,6 @@ export default function SettingsPage() {
     { id: 'security', label: t('settings.security'), icon: ShieldCheckIcon },
     { id: 'appearance', label: t('settings.appearance'), icon: PaintBrushIcon },
   ]
-
-  const handleLanguageChange = (lang: string) => {
-    i18n.changeLanguage(lang)
-    setLanguage(lang)
-    updateSettingsMutation.mutate({ default_language: lang })
-  }
 
   return (
     <div className="space-y-6">
@@ -177,6 +137,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="flex-1 card">
+          {/* PROFILE SETTINGS */}
           {activeTab === 'profile' && (
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -187,24 +148,29 @@ export default function SettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     {t('auth.email')}
                   </label>
-                  <input
-                    type="email"
-                    value={user?.email || ''}
-                    disabled
-                    className="input mt-1 bg-gray-100 dark:bg-gray-700"
-                  />
+                  <input type="email" value={user?.email || ''} disabled className="input mt-1 bg-gray-100 dark:bg-gray-700" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Full Name
                   </label>
-                  <input
-                    type="text"
-                    value={user?.full_name || ''}
-                    disabled
-                    className="input mt-1 bg-gray-100 dark:bg-gray-700"
+                  <input type="text" value={user?.full_name || ''} disabled className="input mt-1 bg-gray-100 dark:bg-gray-700" />
+                </div>
+                
+                {/* --- SIGNATURE FIELD --- */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Email Signature
+                  </label>
+                  <p className="text-xs text-gray-500 mb-1">This will be used by the AI to sign your emails.</p>
+                  <textarea
+                    defaultValue={settings?.email_signature || ''}
+                    onBlur={(e) => updateSettingsMutation.mutate({ email_signature: e.target.value })}
+                    className="input mt-1 h-24 font-mono text-sm"
+                    placeholder="Best regards,&#10;Your Name&#10;Position"
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     {t('settings.emailStyle')}
@@ -226,6 +192,7 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* EMAIL ACCOUNTS */}
           {activeTab === 'email' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -234,23 +201,11 @@ export default function SettingsPage() {
                 </h2>
                 <div className="flex space-x-2">
                   {googleStatus?.oauth_configured && (
-                    <button
-                      onClick={() => googleService.connectGoogle()}
-                      className="btn btn-primary flex items-center"
-                    >
-                      <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                      </svg>
+                    <button onClick={() => googleService.connectGoogle()} className="btn btn-primary flex items-center">
                       Connect Google
                     </button>
                   )}
-                  <button
-                    onClick={() => setShowAddAccount(true)}
-                    className="btn btn-secondary flex items-center"
-                  >
+                  <button onClick={() => setShowAddAccount(true)} className="btn btn-secondary flex items-center">
                     <PlusIcon className="w-5 h-5 mr-2" />
                     {t('settings.addEmailAccount')}
                   </button>
@@ -260,7 +215,7 @@ export default function SettingsPage() {
               {!googleStatus?.oauth_configured && (
                 <div className="p-4 bg-yellow-50 dark:bg-yellow-900 rounded-lg">
                   <p className="text-sm text-yellow-700 dark:text-yellow-200">
-                    Google OAuth is not configured. To connect Gmail and Google Calendar, add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your .env file.
+                    Google OAuth is not configured.
                   </p>
                 </div>
               )}
@@ -268,25 +223,14 @@ export default function SettingsPage() {
               {emailAccounts && emailAccounts.length > 0 ? (
                 <ul className="space-y-3">
                   {emailAccounts.map((account: EmailAccount) => (
-                    <li
-                      key={account.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                    >
+                    <li key={account.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                       <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {account.email_address}
-                        </p>
+                        <p className="font-medium text-gray-900 dark:text-white">{account.email_address}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {account.provider} -{' '}
-                          {account.is_active
-                            ? t('settings.connected')
-                            : t('settings.disconnected')}
+                          {account.provider} - {account.is_active ? t('settings.connected') : t('settings.disconnected')}
                         </p>
                       </div>
-                      <button
-                        onClick={() => removeAccountMutation.mutate(account.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded"
-                      >
+                      <button onClick={() => removeAccountMutation.mutate(account.id)} className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded">
                         <TrashIcon className="w-5 h-5" />
                       </button>
                     </li>
@@ -298,6 +242,7 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* LLM SETTINGS */}
           {activeTab === 'llm' && (
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -309,189 +254,49 @@ export default function SettingsPage() {
                 </label>
                 <select
                   value={settings?.llm_provider || 'local'}
-                  onChange={(e) =>
-                    updateSettingsMutation.mutate({ llm_provider: e.target.value })
-                  }
+                  onChange={(e) => updateSettingsMutation.mutate({ llm_provider: e.target.value })}
                   className="input mt-1"
                 >
-                  <option value="local">{t('settings.localLLM')}</option>
-                  <option value="openai">OpenAI</option>
+                  <option value="local">{t('settings.localLLM')} (Ollama)</option>
+                  <option value="openai">OpenAI (ChatGPT)</option>
                   <option value="gemini">Google Gemini</option>
                   <option value="claude">Anthropic Claude</option>
                   <option value="cohere">Cohere</option>
                 </select>
               </div>
-              {llmProviders && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    API Keys
-                  </h3>
-                  {llmProviders
-                    .filter((p: LLMProvider) => p.type === 'cloud')
-                    .map((provider: LLMProvider) => (
-                      <div key={provider.id} className="flex items-center space-x-2">
-                        <input
-                          type="password"
-                          placeholder={`${provider.name} API Key`}
-                          className="input flex-1"
-                          onBlur={(e) => {
-                            if (e.target.value) {
-                              setApiKeyMutation.mutate({
-                                provider: provider.id,
-                                apiKey: e.target.value,
-                              })
-                            }
-                          }}
-                        />
-                        <span
-                          className={clsx(
-                            'text-sm',
-                            provider.is_configured ? 'text-green-600' : 'text-gray-400'
-                          )}
-                        >
-                          {provider.is_configured ? 'Configured' : 'Not set'}
-                        </span>
-                      </div>
-                    ))}
+
+              {settings?.llm_provider && settings.llm_provider !== 'local' && (
+                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center mb-2">
+                    <KeyIcon className="w-5 h-5 mr-2 text-primary-500" />
+                    <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                      {getProviderLabel(settings.llm_provider)}
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="password"
+                      placeholder={`Enter your ${settings.llm_provider} API Key here`}
+                      className="input flex-1"
+                      onBlur={(e) => {
+                        if (e.target.value) {
+                          setApiKeyMutation.mutate({
+                            provider: settings.llm_provider,
+                            apiKey: e.target.value,
+                          })
+                        }
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Your key is stored securely encrypted.
+                  </p>
                 </div>
               )}
             </div>
           )}
 
-          {activeTab === 'notifications' && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {t('settings.notifications')}
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {t('settings.slackWebhook')}
-                  </label>
-                  <div className="flex space-x-2 mt-1">
-                    <input
-                      type="text"
-                      placeholder="https://hooks.slack.com/..."
-                      defaultValue={settings?.slack_webhook_url || ''}
-                      className="input flex-1"
-                      onBlur={(e) => {
-                        if (e.target.value !== settings?.slack_webhook_url) {
-                          updateSettingsMutation.mutate({
-                            slack_webhook_url: e.target.value,
-                          })
-                        }
-                      }}
-                    />
-                    <button
-                      onClick={() => testNotificationMutation.mutate('slack')}
-                      className="btn btn-secondary"
-                    >
-                      Test
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {t('settings.emailNotifications')}
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="notifications@example.com"
-                    defaultValue={settings?.notification_email || ''}
-                    className="input mt-1"
-                    onBlur={(e) => {
-                      if (e.target.value !== settings?.notification_email) {
-                        updateSettingsMutation.mutate({
-                          notification_email: e.target.value,
-                        })
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'security' && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {t('settings.security')}
-              </h2>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Two-Factor Authentication
-                  </h3>
-                  {user?.two_factor_enabled ? (
-                    <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900 rounded-lg">
-                      <span className="text-green-700 dark:text-green-200">
-                        2FA is enabled
-                      </span>
-                      <button
-                        onClick={() => {
-                          const code = prompt('Enter your 2FA code to disable:')
-                          if (code) disable2FAMutation.mutate(code)
-                        }}
-                        className="btn btn-danger"
-                      >
-                        {t('settings.disable2FA')}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setup2FAMutation.mutate()}
-                      className="btn btn-primary"
-                    >
-                      {t('settings.enable2FA')}
-                    </button>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('settings.changePassword')}
-                  </h3>
-                  <form
-                    onSubmit={handlePasswordSubmit((data) => {
-                      if (data.newPass !== data.confirm) {
-                        toast.error('Passwords do not match')
-                        return
-                      }
-                      changePasswordMutation.mutate({
-                        current: data.current,
-                        newPass: data.newPass,
-                      })
-                      resetPassword()
-                    })}
-                    className="space-y-3"
-                  >
-                    <input
-                      type="password"
-                      {...registerPassword('current', { required: true })}
-                      placeholder={t('settings.currentPassword')}
-                      className="input"
-                    />
-                    <input
-                      type="password"
-                      {...registerPassword('newPass', { required: true, minLength: 8 })}
-                      placeholder={t('settings.newPassword')}
-                      className="input"
-                    />
-                    <input
-                      type="password"
-                      {...registerPassword('confirm', { required: true })}
-                      placeholder={t('auth.confirmPassword')}
-                      className="input"
-                    />
-                    <button type="submit" className="btn btn-primary">
-                      {t('settings.changePassword')}
-                    </button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
-
+          {/* APPEARANCE SETTINGS */}
           {activeTab === 'appearance' && (
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -509,9 +314,7 @@ export default function SettingsPage() {
                         onClick={() => setTheme(t)}
                         className={clsx(
                           'px-4 py-2 rounded-lg',
-                          theme === t
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-gray-200 dark:bg-gray-700'
+                          theme === t ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700'
                         )}
                       >
                         {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -528,9 +331,7 @@ export default function SettingsPage() {
                       onClick={() => handleLanguageChange('en')}
                       className={clsx(
                         'px-4 py-2 rounded-lg',
-                        language === 'en'
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700'
+                        language === 'en' ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700'
                       )}
                     >
                       English
@@ -539,9 +340,7 @@ export default function SettingsPage() {
                       onClick={() => handleLanguageChange('ro')}
                       className={clsx(
                         'px-4 py-2 rounded-lg',
-                        language === 'ro'
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700'
+                        language === 'ro' ? 'bg-primary-600 text-white' : 'bg-gray-200 dark:bg-gray-700'
                       )}
                     >
                       Romana
@@ -551,122 +350,55 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+
+           {/* Placeholder for other tabs */}
+           {['notifications', 'security'].includes(activeTab) && (
+              <div className="p-10 text-center text-gray-500">
+                  Settings for {activeTab} coming soon in full version.
+              </div>
+           )}
+
         </div>
       </div>
 
       {showAddAccount && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              {t('settings.addEmailAccount')}
-            </h3>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                const formData = new FormData(e.currentTarget)
-                addAccountMutation.mutate({
-                  provider: formData.get('provider') as string,
-                  email_address: formData.get('email_address') as string,
-                  display_name: formData.get('display_name') as string || undefined,
-                })
-              }}
-              className="space-y-4"
-            >
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Provider
-                </label>
-                <select name="provider" className="input mt-1" required>
-                  <option value="gmail">Gmail</option>
-                  <option value="outlook">Outlook</option>
-                  <option value="yahoo">Yahoo</option>
-                  <option value="imap">IMAP (Generic)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {t('auth.email')}
-                </label>
-                <input
-                  type="email"
-                  name="email_address"
-                  className="input mt-1"
-                  placeholder="your@email.com"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Display Name (optional)
-                </label>
-                <input
-                  type="text"
-                  name="display_name"
-                  className="input mt-1"
-                  placeholder="Work Email"
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddAccount(false)}
-                  className="btn btn-secondary"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={addAccountMutation.isPending}
-                  className="btn btn-primary"
-                >
-                  {addAccountMutation.isPending ? t('common.loading') : t('common.add')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {show2FASetup && qrCode && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Setup Two-Factor Authentication
-            </h3>
-            <div className="text-center mb-4">
-              <img src={qrCode} alt="QR Code" className="mx-auto" />
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Scan this QR code with your authenticator app
-              </p>
-            </div>
-            <form
-              onSubmit={handle2FASubmit((data) => verify2FAMutation.mutate(data.code))}
-              className="space-y-4"
-            >
-              <input
-                type="text"
-                {...register2FA('code', { required: true })}
-                placeholder="Enter 6-digit code"
-                className="input"
-                maxLength={6}
-              />
-              <div className="flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShow2FASetup(false)
-                    setQrCode(null)
-                  }}
-                  className="btn btn-secondary"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Verify
-                </button>
-              </div>
-            </form>
-          </div>
+             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('settings.addEmailAccount')}</h3>
+                <form onSubmit={(e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    addAccountMutation.mutate({
+                      provider: formData.get('provider') as string,
+                      email_address: formData.get('email_address') as string,
+                      display_name: formData.get('display_name') as string || undefined,
+                    })
+                }} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Provider</label>
+                        <select name="provider" className="input mt-1" required>
+                            <option value="gmail">Gmail</option>
+                            <option value="outlook">Outlook</option>
+                            <option value="yahoo">Yahoo</option>
+                            <option value="imap">IMAP</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                        <input type="email" name="email_address" className="input mt-1" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Display Name</label>
+                        <input type="text" name="display_name" className="input mt-1" />
+                    </div>
+                    <div className="flex justify-end space-x-2">
+                        <button type="button" onClick={() => setShowAddAccount(false)} className="btn btn-secondary">Cancel</button>
+                        <button type="submit" disabled={addAccountMutation.isPending} className="btn btn-primary">
+                            {addAccountMutation.isPending ? 'Adding...' : 'Add'}
+                        </button>
+                    </div>
+                </form>
+             </div>
         </div>
       )}
     </div>

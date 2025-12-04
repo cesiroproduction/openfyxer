@@ -128,10 +128,13 @@ export const emailService = {
     return response.data
   },
 
+  // --- FIX AICI: Extragem .items din raspunsul paginat ---
   getDrafts: async (): Promise<Draft[]> => {
     const response = await api.get('/drafts')
-    return response.data
+    // Backend returneaza { items: [...], total: n }, noi vrem doar items
+    return response.data.items || []
   },
+  // --------------------------------------------------------
 
   getDraft: async (id: string): Promise<Draft> => {
     const response = await api.get(`/drafts/${id}`)

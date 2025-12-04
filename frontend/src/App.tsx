@@ -11,6 +11,7 @@ import MeetingsPage from './pages/MeetingsPage'
 import SettingsPage from './pages/SettingsPage'
 import AuditPage from './pages/AuditPage'
 import ChatPage from './pages/ChatPage'
+import DraftsPage from './pages/DraftsPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -51,6 +52,7 @@ function App() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="inbox" element={<InboxPage />} />
+        <Route path="drafts" element={<DraftsPage />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="knowledge-base" element={<KnowledgeBasePage />} />
         <Route path="meetings" element={<MeetingsPage />} />

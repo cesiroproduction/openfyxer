@@ -1,6 +1,5 @@
-"""Calendar endpoints."""
-
 import uuid
+import traceback
 from datetime import datetime, timedelta
 from typing import Any, List, Optional
 
@@ -31,6 +30,9 @@ from app.services.calendar_service import CalendarService
 
 router = APIRouter()
 
+# --- HELPER PENTRU LOGARE IN TERMINAL ---
+def log_debug(msg):
+    print(f"[CALENDAR_API_DEBUG] {msg}", flush=True)
 
 @router.get("/events", response_model=CalendarEventListResponse)
 async def list_calendar_events(
@@ -59,11 +61,9 @@ async def list_calendar_events(
         query = query.where(CalendarEvent.end_time <= date_to)
         count_query = count_query.where(CalendarEvent.end_time <= date_to)
 
-    # Get total count
     total_result = await db.execute(count_query)
     total = total_result.scalar()
 
-    # Get paginated results
     query = query.order_by(CalendarEvent.start_time.asc())
     query = query.offset(pagination.offset).limit(pagination.limit)
 
@@ -89,36 +89,19 @@ async def create_calendar_event(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Create a new calendar event."""
+    """Create a new calendar event with Google Sync."""
+    log_debug(f"Received CREATE Request. Title: {event_in.title}, Provider: {event_in.provider}")
+    
     if event_in.end_time <= event_in.start_time:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="End time must be after start time",
         )
 
-    provider = event_in.provider
-
-    # Auto-route local events to a connected provider when possible
-    if provider == "local":
-        connected_account = await db.execute(
-            select(EmailAccount)
-            .where(
-                EmailAccount.user_id == current_user.id,
-                EmailAccount.is_active == True,  # noqa: E712
-                EmailAccount.sync_enabled == True,  # noqa: E712
-            )
-            .order_by(EmailAccount.created_at)
-        )
-        account = connected_account.scalar_one_or_none()
-        if account:
-            if account.provider == "gmail":
-                provider = "google"
-            elif account.provider == "outlook":
-                provider = "outlook"
-
+    # 1. Create local event
     event = CalendarEvent(
         user_id=current_user.id,
-        provider=provider,
+        provider=event_in.provider,
         title=event_in.title,
         description=event_in.description,
         start_time=event_in.start_time,
@@ -136,37 +119,48 @@ async def create_calendar_event(
     await db.commit()
     await db.refresh(event)
 
-    # Push newly created events to external providers when possible
-    if provider == "google":
-        account_query = await db.execute(
-            select(EmailAccount)
-            .where(
+    # 2. Sync to Google logic
+    log_debug(f"Checking sync condition: provider={event.provider}")
+    
+    if event.provider == "google":
+        log_debug("Attempting Google Sync...")
+        
+        # Get Account
+        account_result = await db.execute(
+            select(EmailAccount).where(
                 EmailAccount.user_id == current_user.id,
                 EmailAccount.provider == "gmail",
-                EmailAccount.is_active == True,  # noqa: E712
-                EmailAccount.sync_enabled == True,  # noqa: E712
+                EmailAccount.is_active == True
             )
-            .order_by(EmailAccount.created_at)
         )
-        account = account_query.scalar_one_or_none()
+        email_account = account_result.scalars().first()
 
-        if account and account.oauth_token:
-            calendar_service = CalendarService(db)
-            external_id = await calendar_service.create_google_event(
-                oauth_token=decrypt_value(account.oauth_token),
-                refresh_token=(
-                    decrypt_value(account.oauth_refresh_token)
-                    if account.oauth_refresh_token
-                    else None
-                ),
-                event=event,
-            )
-
-            if external_id:
-                event.external_id = external_id
-                event.calendar_id = "primary"
-                await db.commit()
-                await db.refresh(event)
+        if email_account and email_account.oauth_token:
+            log_debug(f"Found Google Account: {email_account.email_address}")
+            try:
+                service = CalendarService(db)
+                token = decrypt_value(email_account.oauth_token)
+                refresh = decrypt_value(email_account.oauth_refresh_token) if email_account.oauth_refresh_token else None
+                
+                log_debug("Calling service.create_google_event...")
+                google_id = await service.create_google_event(
+                    oauth_token=token,
+                    refresh_token=refresh,
+                    event=event
+                )
+                
+                if google_id:
+                    log_debug(f"SYNC SUCCESS! Google ID: {google_id}")
+                    event.external_id = google_id
+                    await db.commit()
+                    await db.refresh(event)
+                else:
+                    log_debug("SYNC FAILED: Service returned None")
+            except Exception as e:
+                log_debug(f"SYNC EXCEPTION: {e}")
+                traceback.print_exc()
+        else:
+            log_debug("SYNC FAILED: No active Google account found with tokens.")
 
     return event
 
@@ -177,7 +171,6 @@ async def get_calendar_event(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Get calendar event by ID."""
     result = await db.execute(
         select(CalendarEvent).where(
             CalendarEvent.id == event_id,
@@ -202,7 +195,6 @@ async def update_calendar_event(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Update calendar event."""
     result = await db.execute(
         select(CalendarEvent).where(
             CalendarEvent.id == event_id,
@@ -219,7 +211,6 @@ async def update_calendar_event(
 
     update_data = event_in.model_dump(exclude_unset=True)
 
-    # Validate times if both are being updated
     start_time = update_data.get("start_time", event.start_time)
     end_time = update_data.get("end_time", event.end_time)
 
@@ -235,8 +226,6 @@ async def update_calendar_event(
     await db.commit()
     await db.refresh(event)
 
-    # TODO: Sync to external calendar provider
-
     return event
 
 
@@ -246,7 +235,6 @@ async def delete_calendar_event(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Delete calendar event."""
     result = await db.execute(
         select(CalendarEvent).where(
             CalendarEvent.id == event_id,
@@ -264,8 +252,6 @@ async def delete_calendar_event(
     await db.delete(event)
     await db.commit()
 
-    # TODO: Delete from external calendar provider
-
     return {"message": "Calendar event deleted successfully"}
 
 
@@ -275,7 +261,6 @@ async def check_conflicts(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Check for conflicts with other events."""
     result = await db.execute(
         select(CalendarEvent).where(
             CalendarEvent.id == event_id,
@@ -290,7 +275,6 @@ async def check_conflicts(
             detail="Calendar event not found",
         )
 
-    # Find conflicting events
     conflicts_result = await db.execute(
         select(CalendarEvent).where(
             CalendarEvent.user_id == current_user.id,
@@ -306,10 +290,8 @@ async def check_conflicts(
     )
     conflicts = conflicts_result.scalars().all()
 
-    # Find alternative slots if there are conflicts
     alternatives = []
     if conflicts:
-        # Simple algorithm: suggest slots after the last conflict
         last_conflict_end = max(c.end_time for c in conflicts)
         duration = event.end_time - event.start_time
 
@@ -337,8 +319,6 @@ async def get_available_slots(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Get available time slots for scheduling."""
-    # Get user settings for working hours
     settings_result = await db.execute(
         select(UserSettings).where(UserSettings.user_id == current_user.id)
     )
@@ -346,7 +326,7 @@ async def get_available_slots(
 
     working_start = "09:00"
     working_end = "17:00"
-    working_days = [1, 2, 3, 4, 5]  # Monday to Friday
+    working_days = [1, 2, 3, 4, 5]
     buffer_minutes = 15
 
     if user_settings:
@@ -355,7 +335,6 @@ async def get_available_slots(
         working_days = user_settings.working_days or working_days
         buffer_minutes = user_settings.meeting_buffer_minutes or buffer_minutes
 
-    # Get existing events in the date range
     events_result = await db.execute(
         select(CalendarEvent)
         .where(
@@ -368,15 +347,12 @@ async def get_available_slots(
     )
     existing_events = events_result.scalars().all()
 
-    # Generate available slots
     slots = []
     current_date = request.date_from.date()
     end_date = request.date_to.date()
 
     while current_date <= end_date:
-        # Check if it's a working day
         if current_date.isoweekday() in working_days:
-            # Parse working hours
             start_hour, start_min = map(int, working_start.split(":"))
             end_hour, end_min = map(int, working_end.split(":"))
 
@@ -396,14 +372,12 @@ async def get_available_slots(
                 slot_start = datetime.combine(current_date, datetime.min.time())
                 slot_end = datetime.combine(current_date, datetime.max.time())
 
-            # Find free slots
             current_time = slot_start
 
             for event in existing_events:
                 if event.start_time.date() != current_date:
                     continue
 
-                # Check if there's a gap before this event
                 if event.start_time > current_time:
                     gap_duration = (
                         event.start_time - current_time
@@ -420,7 +394,6 @@ async def get_available_slots(
 
                 current_time = event.end_time + timedelta(minutes=buffer_minutes)
 
-            # Check for slot after last event
             if current_time < slot_end:
                 remaining = (slot_end - current_time).total_seconds() / 60
                 if remaining >= request.duration_minutes:
@@ -444,8 +417,6 @@ async def auto_schedule_meeting(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Auto-schedule a meeting based on availability."""
-    # Get available slots
     date_from = request.date_range_start or datetime.utcnow()
     date_to = request.date_range_end or (date_from + timedelta(days=7))
 
@@ -465,7 +436,6 @@ async def auto_schedule_meeting(
             detail="No available slots found in the specified date range",
         )
 
-    # Use first available slot or preferred time if specified
     selected_slot = slots_response.slots[0]
 
     if request.preferred_times:
@@ -475,10 +445,9 @@ async def auto_schedule_meeting(
                     selected_slot = slot
                     break
 
-    # Create the event
     event = CalendarEvent(
         user_id=current_user.id,
-        provider="google",  # Default provider
+        provider="google",
         title=request.title,
         description=request.description,
         start_time=selected_slot.start_time,
@@ -491,7 +460,31 @@ async def auto_schedule_meeting(
     await db.commit()
     await db.refresh(event)
 
-    # TODO: Send calendar invites if send_invites is True
+    account_result = await db.execute(
+        select(EmailAccount).where(
+            EmailAccount.user_id == current_user.id,
+            EmailAccount.provider == "gmail",
+            EmailAccount.is_active == True
+        )
+    )
+    email_account = account_result.scalars().first()
+    
+    if email_account and email_account.oauth_token:
+        try:
+            service = CalendarService(db)
+            token = decrypt_value(email_account.oauth_token)
+            refresh = decrypt_value(email_account.oauth_refresh_token) if email_account.oauth_refresh_token else None
+            
+            google_id = await service.create_google_event(
+                oauth_token=token,
+                refresh_token=refresh,
+                event=event
+            )
+            if google_id:
+                event.external_id = google_id
+                await db.commit()
+        except Exception:
+            pass
 
     return event
 
@@ -502,13 +495,14 @@ async def sync_calendars(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Sync calendars with external providers."""
+    """Sync calendars with detailed debugging."""
+    log_debug(f"Starting SYNC for user {current_user.id}")
     calendar_service = CalendarService(db)
 
     account_query = select(EmailAccount).where(
         EmailAccount.user_id == current_user.id,
-        EmailAccount.is_active == True,  # noqa: E712
-        EmailAccount.sync_enabled == True,  # noqa: E712
+        EmailAccount.is_active == True,
+        EmailAccount.sync_enabled == True,
     )
 
     if provider == "google":
@@ -518,85 +512,51 @@ async def sync_calendars(
 
     result = await db.execute(account_query)
     accounts = result.scalars().all()
+    
+    log_debug(f"Found {len(accounts)} active accounts")
 
     if not accounts:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No connected accounts available for calendar sync",
-        )
+        log_debug("No accounts found, returning empty success.")
+        return {"message": "No accounts to sync", "synced_events": 0, "accounts": []}
 
     summary = []
     total_synced = 0
 
-    try:
-        for account in accounts:
+    for account in accounts:
+        log_debug(f"Processing account: {account.email_address}")
+        try:
             if account.provider == "gmail" and account.oauth_token:
-                await calendar_service.push_local_google_events(
-                    user_id=current_user.id,
-                    oauth_token=decrypt_value(account.oauth_token),
-                    refresh_token=(
-                        decrypt_value(account.oauth_refresh_token)
-                        if account.oauth_refresh_token
-                        else None
-                    ),
-                    calendar_id="primary",
-                )
+                token = decrypt_value(account.oauth_token)
+                refresh = decrypt_value(account.oauth_refresh_token) if account.oauth_refresh_token else None
+                
+                log_debug("Calling sync_google_calendar...")
                 events = await calendar_service.sync_google_calendar(
                     user_id=current_user.id,
-                    oauth_token=decrypt_value(account.oauth_token),
-                    refresh_token=(
-                        decrypt_value(account.oauth_refresh_token)
-                        if account.oauth_refresh_token
-                        else None
-                    ),
+                    oauth_token=token,
+                    refresh_token=refresh,
                     calendar_id="primary",
                 )
-            elif account.provider == "outlook" and account.oauth_token:
-                events = await calendar_service.sync_outlook_calendar(
-                    user_id=current_user.id,
-                    oauth_token=decrypt_value(account.oauth_token),
-                )
+                log_debug(f"Sync returned {len(events)} events")
+                
+                account.last_sync = datetime.utcnow()
+                await db.commit()
+                
+                count = len(events)
+                total_synced += count
+                summary.append({"account": account.email_address, "status": "success", "count": count})
             else:
-                summary.append(
-                    {
-                        "account_id": str(account.id),
-                        "provider": account.provider,
-                        "synced_count": 0,
-                        "status": "skipped_no_token",
-                    }
-                )
-                continue
+                log_debug(f"Account {account.email_address} has no token or unsupported provider.")
+                
+        except Exception as e:
+            log_debug(f"ERROR syncing account {account.email_address}: {e}")
+            traceback.print_exc()
+            summary.append({"account": account.email_address, "status": "failed", "error": str(e)})
 
-            account.last_sync = datetime.utcnow()
-            await db.commit()
-
-            summary.append(
-                {
-                    "account_id": str(account.id),
-                    "provider": account.provider,
-                    "synced_count": len(events),
-                    "status": "success",
-                }
-            )
-            total_synced += len(events)
-
-        return {
-            "message": "Calendar sync completed",
-            "provider": provider or "all",
-            "synced_events": total_synced,
-            "accounts": summary,
-        }
-
-    except CalendarProviderError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to sync calendars: {str(e)}",
-        )
+    return {
+        "message": "Sync attempt finished",
+        "synced_events": total_synced,
+        "details": summary,
+    }
 
 
 @router.get("/today", response_model=List[CalendarEventResponse])
@@ -604,7 +564,6 @@ async def get_today_events(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Get today's calendar events."""
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
 
@@ -629,7 +588,6 @@ async def get_upcoming_events(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Get upcoming calendar events."""
     now = datetime.utcnow()
     end_date = now + timedelta(days=days)
 
